@@ -1,4 +1,4 @@
-EADERS = list.h fifo.h
+HEADERS = list.h fifo.h
 
 all: fifo.o list.o
 	gcc *.o main.c -o main -lpthread

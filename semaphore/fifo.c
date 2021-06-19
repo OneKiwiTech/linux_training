@@ -1,18 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-char fifo[256];
-int fifo_tail;
-int fifo_head;
-int fifo_n_data;
+#define FIFO_MAX 256
 
-#define FIFO_MAX 256;
+char fifo[FIFO_MAX];
 
-
-
-int fifo_data_isavailable()
+struct fifo_obj
 {
-  if (fifo_n_data > 0)
+  char* mem_pool;
+  int fifo_tail;
+  int fifo_head;
+  int fifo_n_data;
+};
+
+
+int fifo_data_isavailable(struct fifo_obj* obj)
+{
+  if (obj->fifo_n_data > 0)
   {
     return 1;
   }
@@ -23,29 +27,32 @@ int fifo_data_isavailable()
 
 }
 
-int fifo_data_isfull()
+int fifo_data_isfull(struct fifo_obj* obj)
 {
-  if (fifo_n_data < 256)
+  if (obj->fifo_n_data < FIFO_MAX)
+  {
     return 0;
-  else
+  }else
+  {
     return 1;
+  }
 }
 
-int fifo_push(char data)
+int fifo_push(struct fifo_obj* obj, char data)
 {
-  if (!fifo_data_isfull())
+  if (!fifo_data_isfull(obj))
   {
-    fifo[fifo_head] = data;
-    if (fifo_head < 255)
+    obj->mem_pool[obj->fifo_head] = data;
+    if (obj->fifo_head < 255)
     {
-      fifo_head ++;
+      obj->fifo_head ++;
     }
     else
     {
-      fifo_head = 0;
+      obj->fifo_head = 0;
     }
 
-    fifo_n_data ++;
+    obj->fifo_n_data ++;
     return 1;
   }
   else
@@ -55,22 +62,24 @@ int fifo_push(char data)
 
 }
 
-char fifo_pull(void)
+char fifo_pull(struct fifo_obj* obj)
 {
   char data;
-  if(fifo_data_isavailable())
+  if(fifo_data_isavailable(obj))
   {
-    data = fifo[fifo_tail];
-    if (fifo_tail < 255)
+    data = obj->mem_pool[obj->fifo_tail];
+    if (obj->fifo_tail < 255)
     {
-      fifo_tail ++;
+      obj->fifo_tail ++;
     }
     else
     {
-      fifo_tail = 0;
+      obj->fifo_tail = 0;
     }
-    fifo_n_data --;
+    obj->fifo_n_data --;
+
     return data;
   }
+  
   return -1;
 }

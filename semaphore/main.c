@@ -140,7 +140,7 @@ void *thread_function_01(void *arg)
         {
             customer_prepare_checkout(finish_id);
         }
-        usleep(100*1000); // 10ms
+        usleep(100*1000); // 100ms
     }
 
     pthread_exit("THREAD 01 is exited");

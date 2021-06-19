@@ -9,10 +9,13 @@ struct test_struct
     struct test_struct *next;
 };
 
-struct test_struct *head = NULL;
-struct test_struct *curr = NULL;
+struct list_object_struct
+{
+    struct test_struct *head;
+    struct test_struct *curr;
+};
 
-struct test_struct* create_list(int val)
+struct test_struct* create_list(struct list_object_struct* obj, int val)
 {
     printf("\n creating list with headnode as [%d]\n",val);
     struct test_struct *ptr = (struct test_struct*)malloc(sizeof(struct test_struct));
@@ -24,15 +27,15 @@ struct test_struct* create_list(int val)
     ptr->val = val;
     ptr->next = NULL;
 
-    head = curr = ptr;
+    obj->head = obj->curr = ptr;
     return ptr;
 }
 
-struct test_struct* add_to_list(int val, bool add_to_end)
+struct test_struct* add_to_list(struct list_object_struct* obj, int val, bool add_to_end)
 {
-    if(NULL == head)
+    if(NULL == obj->head)
     {
-        return (create_list(val));
+        return (create_list(obj, val));
     }
 
     if(add_to_end)
@@ -52,20 +55,20 @@ struct test_struct* add_to_list(int val, bool add_to_end)
 
     if(add_to_end)
     {
-        curr->next = ptr;
-        curr = ptr;
+        obj->curr->next = ptr;
+        obj->curr = ptr;
     }
     else
     {
-        ptr->next = head;
-        head = ptr;
+        ptr->next = obj->head;
+        obj->head = ptr;
     }
     return ptr;
 }
 
-struct test_struct* search_in_list(int val, struct test_struct **prev)
+struct test_struct* search_in_list(struct list_object_struct* obj, int val, struct test_struct **prev)
 {
-    struct test_struct *ptr = head;
+    struct test_struct *ptr = obj->head;
     struct test_struct *tmp = NULL;
     bool found = false;
 
@@ -97,14 +100,14 @@ struct test_struct* search_in_list(int val, struct test_struct **prev)
     }
 }
 
-int delete_from_list(int val)
+int delete_from_list(struct list_object_struct* obj, int val)
 {
     struct test_struct *prev = NULL;
     struct test_struct *del = NULL;
 
     printf("\n Deleting value [%d] from list\n",val);
 
-    del = search_in_list(val,&prev);
+    del = search_in_list(obj, val,&prev);
     if(del == NULL)
     {
         return -1;
@@ -114,13 +117,13 @@ int delete_from_list(int val)
         if(prev != NULL)
             prev->next = del->next;
 
-        if(del == curr)
+        if(del == obj->curr)
         {
-            curr = prev;
+            obj->curr = prev;
         }
-        else if(del == head)
+        else if(del == obj->head)
         {
-            head = del->next;
+            obj->head = del->next;
         }
     }
 
@@ -130,9 +133,9 @@ int delete_from_list(int val)
     return 0;
 }
 
-void print_list(void)
+void print_list(struct list_object_struct* obj)
 {
-    struct test_struct *ptr = head;
+    struct test_struct *ptr = obj->head;
 
     printf("\n -------Printing list Start------- \n");
     while(ptr != NULL)
@@ -146,9 +149,9 @@ void print_list(void)
 }
 
 
-int list_count_down(void)
+int list_count_down(struct list_object_struct* obj)
 {
-    struct test_struct *ptr = head;
+    struct test_struct *ptr = obj->head;
 
     while(ptr != NULL)
     {
