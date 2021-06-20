@@ -110,7 +110,7 @@ static ssize_t device_write(struct file *filp, const char *buff, size_t len, lof
 {
 	int bytes_written = 1;
 
-	displayDigits(buff[0]);
+	displayDigits(buff[1]);
 
 	return bytes_written;
 }
@@ -127,11 +127,11 @@ static void gpio_set_pin_state(int pin_no, int value)
 	u32 cmd; 
 	cmd = 1 << pin_no;
 
-	if (value)
+	if (value) // 1
 	{
 		writel(cmd, (addr+0x1c));
 	}
-	else 
+	else // 0
 	{
 		writel(cmd, (addr+0x28));
 	}

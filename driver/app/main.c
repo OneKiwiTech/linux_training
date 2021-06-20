@@ -28,7 +28,6 @@ const char* test_string = "0123456789ABCDEF";
 // GPIO Pin Mapping
 #ifdef GPIO_USE_LIB_WIRING_PI
   static int segments [7] = {  6,  5,  4,  3,  2,  1, 0 } ;
-  static int digit_pin = 5; 
 #endif 
 
 static const int segmentDigits [] =
@@ -71,7 +70,7 @@ void displayDigits(char ch)
     d = toupper (ch) ;
     if ((d >= '0') && (d <= '9'))	// Digit
     {
-      index = d - '0' ;
+      index = d - '0' ;  // 1 <=> 0x31 (ASCII) = 0x31 - 0x30 ('0')
     }else if ((d >= 'A') && (d <= 'F'))	// Hex
     {
       index = d - 'A' + 10 ;
@@ -79,6 +78,7 @@ void displayDigits(char ch)
     {
       index = 16 ;				// Blank
     }
+
     segVal = segmentDigits [index * 7 + segment] ;
     gpio_set_pin_state (segments [segment], segVal) ;
   }
@@ -97,11 +97,6 @@ void hw_gpio_init (void)
       gpio_set_pin_mode_ouput(segments [i]);
       gpio_set_pin_state (segments [i], 0) ; 
   }
-
-  // Digit enable pin
-  gpio_set_pin_mode_ouput (digit_pin); 
-  gpio_set_pin_state (digit_pin, 0) ;   
-
 }
 
 int main (void)

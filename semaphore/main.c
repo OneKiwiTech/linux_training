@@ -170,8 +170,8 @@ void sig_handler(int signum)
     About half the customers take a handheld scanner with them, there are 10 handheld
     scanners
     */
-    has_canner = (sem_trywait(&scanner_sem) < 0)?true:false; 
-    add_to_list(&shopping_list, id_cnt);
+    has_canner = (sem_trywait(&scanner_sem) > 0)?true:false; 
+    add_to_list(&shopping_list, id_cnt, has_canner);
     id_cnt++;
   }
 
@@ -268,10 +268,7 @@ void manual_checkout_add_to_queue(char id)
         }
     }
 
-    if ( curr_queue_idx >= 0)
-    {
-        fifo_push(obj, id);
-    }
+    fifo_push(obj, id); 
 }
 
 
@@ -303,7 +300,7 @@ void *manual_checkout_thread(void *arg)
             {
                 checkout_turn = true;
                 // Add to return cart list
-                add_to_list(&return_cart_list, id);
+                add_to_list(&return_cart_list, id, false);
             }
             counter -= 1;
         }
@@ -335,10 +332,7 @@ void scanner_checkout_add_to_queue(char id)
         }
     }
 
-    if ( curr_queue_idx >= 0)
-    {
-        fifo_push(obj, id);
-    }
+    fifo_push(obj, id);
 }
 
 /*
@@ -371,7 +365,7 @@ void *scanner_checkout_thread(void *arg)
                 // Release scanner for next person
                 sem_post(&scanner_sem);
                 // Add to return cart list
-                add_to_list(&return_cart_list, id);
+                add_to_list(&return_cart_list, id, true);
             }
             counter -= 1;
         }

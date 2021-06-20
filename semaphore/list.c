@@ -19,7 +19,7 @@ struct customer_info_obj* create_list(struct list_object_struct* obj, int val)
     return ptr;
 }
 
-struct customer_info_obj* add_to_list(struct list_object_struct* obj, int val)
+struct customer_info_obj* add_to_list(struct list_object_struct* obj, int val, bool has_scanner)
 {
     if(NULL == obj->head)
     {
