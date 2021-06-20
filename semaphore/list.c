@@ -127,7 +127,7 @@ void print_list(struct list_object_struct* obj)
 }
 
 
-int list_count_down(struct list_object_struct* obj)
+int list_count_down(struct list_object_struct* obj, struct customer_info_obj *curr_cust_obj )
 {
     struct customer_info_obj *ptr = obj->head;
 
@@ -136,6 +136,7 @@ int list_count_down(struct list_object_struct* obj)
         ptr->remain_time--;
         if (ptr->remain_time == 0)
         {
+            curr_cust_obj = ptr;
             return ptr->val; //return customer id
         }
         ptr = ptr->next;

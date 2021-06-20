@@ -10,40 +10,56 @@
 #include "fifo.h"
 #include "list.h"
 
-typedef unsigned long uint32_t ;
+typedef unsigned long uint32_t;
+typedef unsigned int uint16_t;
+
 #define  NUMBER_OF_CART              20
 #define  NUMBER_OF_SCANNER           10
 
 #define  MAX_CASHIER_QUEUE          (3)
 #define  MAX_SCANNER_QUEUE          (2)
+#define  MAX_TOTAL_QUEUE            (MAX_CASHIER_QUEUE + MAX_SCANNER_QUEUE)
 
 #define  DEFAULT_CASHIER_CHECKOUT_PERIOD       (50)
 #define  DEFAULT_SCANNER_CHECKOUT_PERIOD       (20)
 
-sem_t cart_sem;
-sem_t scanner_sem;
+#define MAX_ENTRY_COUNTER      20  // 20 * 100ms = 2000ms = 2s
 
-uint32_t  id_cnt = 0;
+static sem_t cart_sem;
+static sem_t scanner_sem;
+
+static uint32_t  id_cnt = 0;
 
 // Declare list object
 struct list_object_struct return_cart_list;
 struct list_object_struct shopping_list;
 
 // Declare FIFO object
-char cashier_fifo_mem[MAX_CASHIER_QUEUE][FIFO_MAX]; // Max 3 cashier
-struct fifo_obj manual_checkout_fifo[MAX_CASHIER_QUEUE3];
+char cashier_fifo_mem[MAX_TOTAL_QUEUE][FIFO_MAX]; 
+struct fifo_obj manual_checkout_fifo[MAX_CASHIER_QUEUE];
+struct fifo_obj scanner_checkout_fifo[MAX_SCANNER_QUEUE];
 
-void *thread_function_01(void *arg);
-void *thread_function_02(void *arg);
-void *monitor_thread(void *arg);
+void scanner_checkout_add_to_queue(char id);
+void manual_checkout_add_to_queue(char id);
 
+void *thread_shopping_tracking(void *arg);
+void *scanner_checkout_thread(void *arg);
+void *manual_checkout_thread(void *arg);
+void *thread_return_cart(void *arg);
 
 int main()
 {
     int res;
-    pthread_t a_thread[3];
+    int i = 0;
+
+    pthread_t shopping_thread;
+    pthread_t cashier_thread[3];
+    pthread_t scanner_thread[2];
+    pthread_t return_thread;
+
     void *thread_result;
 
+    // ================= INIT SEMAPHORE ==============
     res = sem_init(&cart_sem, 0, NUMBER_OF_CART);
     if (res != 0) {
         perror("cart_sem initialization failed");
@@ -56,42 +72,68 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    //=================Init FIFO=======================
+    
 
-    //=================Init link list==================
+    //=================Init link list===================
     // Init return cart list
     return_cart_list.meta_data = 20;  // 20 * 100ms = 2 seconds
-    create_list(&return_cart_list);
+    create_list(&return_cart_list, 0);
 
-    /* Create thread API */
-    res = pthread_create(&a_thread[0], NULL, thread_function_01, (void *)NULL);
+    shopping_list.meta_data = 50;  // 20 * 100ms = 2 seconds
+    create_list(&shopping_list, 0);
+    
+    //=================Init THREAD=======================
+    res = pthread_create(&shopping_thread, NULL, thread_shopping_tracking, (void *)NULL);
     if (res != 0)
     {
         perror("Thread creation failed");
         exit(EXIT_FAILURE);
     }
    
-    res = pthread_create(&a_thread[1], NULL, thread_function_02, (void *)&cashier_queue_01);
+    res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
     {
         perror("Thread creation failed");
         exit(EXIT_FAILURE);
     }
- #if 0
-    
-    res = pthread_create(&a_thread[2], NULL, monitor_thread, (void *)NULL);
-    if (res != 0)
-    {
-        perror("Thread creation failed");
-        exit(EXIT_FAILURE);
-    }
-    #endif
 
+    for (i = 0; i < 3; i++)
+    {
+        res = pthread_create(&cashier_thread[i], NULL, manual_checkout_thread, (void *)&manual_checkout_fifo[i]);
+        if (res != 0)
+        {
+            perror("Thread creation failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    for (i = 0; i < 2; i++)
+    {
+        res = pthread_create(&scanner_thread[i], NULL, scanner_checkout_thread, (void *)&scanner_checkout_fifo[i]);
+        if (res != 0)
+        {
+            perror("Thread creation failed");
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Waiting all thread finish
     printf("Waiting for thread to finish...\n");
-    pthread_join(a_thread[0], &thread_result);
-    pthread_join(a_thread[1], &thread_result);
-    pthread_join(a_thread[2], &thread_result);
+    pthread_join(shopping_thread, &thread_result);
+    pthread_join(return_thread, &thread_result);
+    for (i = 0; i < 3; i++)
+    {
+        pthread_join(cashier_thread[i], &thread_result);
+    }
+
+    for (i = 0; i < 2; i++)
+    {
+        pthread_join(scanner_thread[i], &thread_result);
+    }
+
+    // Destroy resources
     sem_destroy(&cart_sem);
+    sem_destroy(&scanner_sem);
 
     printf("Thread joined, it returned %s\n", (char *)thread_result);
 
@@ -112,7 +154,6 @@ seconds.
 
 4. Customers without a handheld scanner go to one of three cashiers
 */
-#define MAX_ENTRY_COUNTER      20  // 20 * 100ms = 2000ms = 2s
 
 void sig_handler(int signum) 
 {
@@ -130,32 +171,32 @@ void sig_handler(int signum)
     scanners
     */
     has_canner = (sem_trywait(&scanner_sem) < 0)?true:false; 
-    add_to_list(&shopping_list, id_cnt, has_canner);
+    add_to_list(&shopping_list, id_cnt);
     id_cnt++;
   }
 
   alarm(2);
 }
 
-void  customer_prepare_checkout(int id)
+void  customer_prepare_checkout(struct customer_info_obj *obj)
 {
-    printf("Customer %d need checkout\r\n", id);
+    printf("Customer %d need checkout\r\n", obj->val);
 
-    // Add to fifo
-    if (fifo_data_isfull())
+    //TODO: choose cashier or scanner queue
+    if (obj->has_scanner)
     {
-        printf("FIDO is full\r\n");
-        exit(0);
+        scanner_checkout_add_to_queue(obj->val);
+    }else 
+    {
+        manual_checkout_add_to_queue(obj->val);
     }
-
-    fifo_push(id);
-    add_to_list(&return_cart_list, id);
 }
 
-void *thread_function_01(void *arg)
+void *thread_shopping_tracking(void *arg)
 {
     bool run = true;
     int  finish_id = 0;
+    struct customer_info_obj *curr_cust_obj;
 
     printf("THREAD 01 is running. Argument was %s\n", (char *)arg);
     signal(SIGALRM,sig_handler);
@@ -163,35 +204,15 @@ void *thread_function_01(void *arg)
     alarm(2);
     while(run)
     {
-        finish_id = list_count_down();
+        finish_id = list_count_down(&shopping_list, curr_cust_obj);
         if ( finish_id > 0)
         {
-            customer_prepare_checkout(finish_id);
+            customer_prepare_checkout(curr_cust_obj);
         }
         usleep(100*1000); // 100ms
     }
 
     pthread_exit("THREAD 01 is exited");
-}
-
-/*================================CONSUMER======================================*/
-void *thread_function_02(void *arg)
-{
-    bool run = true;
-    uint32_t sem_val = 0;
-    printf("THREAD 02 is running. Argument was %s\n", (char *)arg);
-    while(run)
-    {
-        if ( fifo_data_isavailable() )
-        {
-            fifo_pull();
-            usleep(2000*1000);
-            printf("ID %d checkout DONE \r\n");
-        }
-        usleep(100*1000);
-    }
-
-    pthread_exit("THREAD 02 is exited");
 }
 
 /*================================RETURN CART======================================*/
@@ -201,16 +222,17 @@ car and return the cart, which then becomes available for new customers, and the
 they go back home.
 */
 
-void *thread_function_03(void *arg)
+void *thread_return_cart(void *arg)
 {
     bool run = true;
     int  finish_id = 0;
+    struct customer_info_obj *obj = NULL;
 
     printf("THREAD 03 is running. Argument was %s\n", (char *)arg);
 
     while(run)
     {
-        finish_id = list_count_down(&return_cart_list);
+        finish_id = list_count_down(&return_cart_list, obj);
         if ( finish_id > 0)
         {
             sem_post(&cart_sem);
@@ -222,65 +244,137 @@ void *thread_function_03(void *arg)
 }
 
 
-void *monitor_thread(void *arg)
-{
-    bool run = true;
-    uint32_t sem_val = 0;
+//===========================CASHIER CHECKOUT==========================================
+/*
+- if there are already customers waiting in line for a cashier, 
+  they choose the cashier with the least (or none) customers in line and join the end of that queue.
+*/
 
-    printf("MONITOR THREAD is running. Argument was %s\n", (char *)arg);
-    while(run)
+void manual_checkout_add_to_queue(char id)
+{
+    int i = 0; 
+    struct fifo_obj* obj = NULL;
+    int curr_queue_cnt = 0;
+    int curr_queue_idx = -1;
+
+    // Find cashier with the least or none customer
+    for (i = 0; i < 3; i++)
     {
-        sleep(0.5);
-        //printf("COUNTER 01 = %d, COUNTER 02 = %d\r\n", counter_01, counter_02);
-        sem_getvalue(&cart_sem, &sem_val);
-        system("cls");
-        printf("SEMAPHORE = %d\r\n", sem_val);
+        obj = &manual_checkout_fifo[i];
+        if (obj->fifo_n_data <= curr_queue_cnt);
+        {
+            curr_queue_cnt = obj->fifo_n_data;
+            curr_queue_idx = i;
+        }
     }
 
-    pthread_exit("THREAD 02 is exited");
+    if ( curr_queue_idx >= 0)
+    {
+        fifo_push(obj, id);
+    }
 }
 
-//=====================================================================
-/*
-- Customers without a handheld scanner go to one of three cashiers, 
-- if there are already customers waiting in line for a cashier, they choose the cashier with the least
-(or none) customers in line and join the end of that queue.
 
 
+
+/* 
+- When it is their turn, it takes 5 seconds to register all the items and pay.
 */
-void manual_checkout_add_queue()
-{
-    //TODO: chost least or non customer in line
-
-    // Wait 5 second to register 
-}
-
 void *manual_checkout_thread(void *arg)
 {
-    int i = 0;
-    uint32_t counter = 0;
-    struct fifo_obj* obj = NULL;
+    struct fifo_obj* obj = (struct fifo_obj*)arg;
+    bool checkout_turn = true;
+    uint32_t counter = DEFAULT_CASHIER_CHECKOUT_PERIOD;
+    int id = 0;
+
     while(1)
     {
-        for (i = 0; i < MAX_CASHIER_QUEUE; i++)
+        // Check & pull customer from queue 
+        if (checkout_turn)
         {
-            obj = &manual_checkout_fifo[i];
             if ( fifo_data_isavailable(obj) )
             {
-                fifo_pull(obj);
+                id = fifo_pull(obj);
+                checkout_turn = false;
             }
+        }else 
+        {
+            if (counter == 0)
+            {
+                checkout_turn = true;
+                // Add to return cart list
+                add_to_list(&return_cart_list, id);
+            }
+            counter -= 1;
         }
         usleep(100*1000); // 100ms
     }
 }
-/* 
-- When it is their turn, it takes 5 seconds to register all the items and pay.
-*/
 
+
+//==============================================================================================
 /* 
 - Customers with a handheld scanner go to one of two checkout terminals, 
 - if none are available, they wait in one queue, first customer in the queue takes the first terminal which becomes available. 
+*/
+void scanner_checkout_add_to_queue(char id)
+{
+    int i = 0; 
+    struct fifo_obj* obj = NULL;
+    int curr_queue_cnt = 0;
+    int curr_queue_idx = -1;
+
+    // Find cashier with the least or none customer
+    for (i = 0; i < 2; i++)
+    {
+        obj = &scanner_checkout_fifo[i];
+        if (obj->fifo_n_data <= curr_queue_cnt);
+        {
+            curr_queue_cnt = obj->fifo_n_data;
+            curr_queue_idx = i;
+        }
+    }
+
+    if ( curr_queue_idx >= 0)
+    {
+        fifo_push(obj, id);
+    }
+}
+
+/*
 - Registering the handheld scanner and paying only takes 2 seconds, 
 - after that the handheld scanner becomes immediately available for new
 customers.
 */
+void *scanner_checkout_thread(void *arg)
+{
+    struct fifo_obj* obj = (struct fifo_obj*)arg;
+    bool checkout_turn = true;
+    uint32_t counter = DEFAULT_SCANNER_CHECKOUT_PERIOD;
+    int id = 0;
+
+    while(1)
+    {
+        // Check & pull customer from queue 
+        if (checkout_turn)
+        {
+            if ( fifo_data_isavailable(obj) )
+            {
+                id = fifo_pull(obj);
+                checkout_turn = false;
+            }
+        }else 
+        {
+            if (counter == 0)
+            {
+                checkout_turn = true;
+                // Release scanner for next person
+                sem_post(&scanner_sem);
+                // Add to return cart list
+                add_to_list(&return_cart_list, id);
+            }
+            counter -= 1;
+        }
+        usleep(100*1000); // 100ms
+    }
+}

@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include "fifo.h"
 
 int fifo_data_isavailable(struct fifo_obj* obj)
 {
@@ -26,7 +26,7 @@ int fifo_data_isfull(struct fifo_obj* obj)
   }
 }
 
-int fifo_push(struct fifo_obj* obj, char data)
+int fifo_push(struct fifo_obj* obj, int data)
 {
   if (!fifo_data_isfull(obj))
   {
