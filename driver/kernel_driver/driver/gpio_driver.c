@@ -31,8 +31,9 @@ static char msg[BUF_LEN];	/* The msg the device will give when asked */
 static char *msg_Ptr;
 
 
+// LED segment data
+static int curr_display_data = 0;
 static int segments [7] = {  6,  5,  4,  3,  2,  1, 0 } ;
-static int digit_pin = 5; 
 
 static const int segmentDigits [] =
 {
@@ -58,6 +59,8 @@ static const int segmentDigits [] =
    0, 0, 0, 0, 0, 0, 0,	// blank
 } ;
 
+static void gpio_set_default_state();
+
 static int device_open(struct inode *inode, struct file *file)
 {
 	u32 cmd;   // command word to write
@@ -71,12 +74,8 @@ static int device_open(struct inode *inode, struct file *file)
 	addr = ioremap(PORT, RANGE);
 	if (addr  != NULL)
 	{
-		cmd = 0;
-		writel(cmd, (addr+4)); // clear the setting of pin 10
-		cmd = 1;
-		writel(cmd, (addr+4)); // set pin 10 as output
-
 		//TODO: config output 7 segment GPIO
+		gpio_set_default_state();
 		return SUCCESS;
     }
     else
@@ -99,11 +98,9 @@ static ssize_t device_read(struct file *filp,
 			   loff_t * offset)
 {
     int bytes_read = 1;
-    int index;
-    u32 res;   // status word to read
 	msg_Ptr = msg;
 
-	msg[0] = (res >> 24) & 0xFF;
+	msg[0] = curr_display_data & 0xFF;
 	put_user(*(msg_Ptr++), buffer++);
 
 	return bytes_read;
@@ -112,44 +109,31 @@ static ssize_t device_read(struct file *filp,
 static ssize_t device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
 {
 	int bytes_written = 1;
-	u32 cmd;   // command word to write
-	if (buff)
-	{
-		if (buff[0] == 1)
-		{
-			cmd = 1 << 10;
-			writel(cmd, (addr+0x1c));
-		}
-		else
-		{
-			if (buff[0] == 0)
-			{
-				cmd = 1 << 10;
-				writel(cmd, (addr+0x28));
-			}
-		}
-	}
+
+	displayDigits(buff[0]);
+
 	return bytes_written;
+}
+
+static void gpio_set_default_state()
+{
+	u32 cmd;   // command word to write
+	cmd = 0x7F;
+	writel(cmd, addr+4 ); // clear the setting of pin 10
 }
 
 static void gpio_set_pin_state(int pin_no, int value)
 {
-	u32 cmd;   // command word to write
-	if (buff)
+	u32 cmd; 
+	cmd = 1 << pin_no;
+
+	if (value)
 	{
-		if (buff[0] == 1)
-		{
-			cmd = 1 << 10;
-			writel(cmd, (addr+0x1c));
-		}
-		else
-		{
-			if (buff[0] == 0)
-			{
-				cmd = 1 << 10;
-				writel(cmd, (addr+0x28));
-			}
-		}
+		writel(cmd, (addr+0x1c));
+	}
+	else 
+	{
+		writel(cmd, (addr+0x28));
 	}
 }
 
@@ -176,8 +160,6 @@ static void displayDigits(int d)
 		segVal = segmentDigits [index * 7 + segment] ;
 		gpio_set_pin_state (segments [segment], segVal) ;
 	}
-
-    gpio_set_pin_state (digit_pin, 0) ;
 }
 
 static struct file_operations fops = {
@@ -218,7 +200,7 @@ int init_module(void)
 
 void cleanup_module(void)
 {
-	printk(KERN_ALERT "Ade :-)\n");
+	printk(KERN_ALERT "Goodbye!\n");
 	release_mem_region(PORT, RANGE); 
 	unregister_chrdev(Major, DEVICE_NAME);
 }
