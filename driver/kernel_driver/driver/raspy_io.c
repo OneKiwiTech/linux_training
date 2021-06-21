@@ -35,7 +35,7 @@ static int device_open(struct inode *inode, struct file *file)
 
 	Device_Open++;
 	try_module_get(THIS_MODULE);
-	addr = ioremap(PORT, RANGE);
+	addr = devm_ioremap(PORT, RANGE);
 	if (addr  != NULL)
 	{
 		cmd = 0;
@@ -124,14 +124,14 @@ int init_module(void)
 	  printk(KERN_ALERT "Registering char device failed with %d\n", Major);
 	  return Major;
 	}
-	if(check_mem_region(PORT, RANGE) < 0)
+	// if(check_mem_region(PORT, RANGE) < 0)
 	{
 		unregister_chrdev(Major, DEVICE_NAME);
 		return -ENODEV;
 	}
 	else
 	{
-		if(request_mem_region(PORT, RANGE, DEVICE_NAME) == NULL)
+		// if(request_mem_region(PORT, RANGE, DEVICE_NAME) == NULL)
 		{
 			unregister_chrdev(Major, DEVICE_NAME);
 			return -ENODEV;
