@@ -17,7 +17,7 @@ MODULE_LICENSE("GPL");
 #define DEVICE_NAME "io_dev" // Dev name as it appears in /proc/devices   
 #define BUF_LEN 80		     // Max length of the message from the device 
 
-static unsigned PORT = 0x20200000; 
+static unsigned PORT = 0x20200000; // The address 0x7E20 0000 is mapped to 0x2020 0000 
 
 static unsigned RANGE =  0x40;
 unsigned cmd_word;
@@ -118,7 +118,7 @@ static ssize_t device_write(struct file *filp, const char *buff, size_t len, lof
 static void gpio_set_default_state()
 {
 	u32 cmd;   // command word to write
-	cmd = 0x7F;
+	cmd = 0x7F; // pin 6 -> 0 => Output
 	writel(cmd, addr+4 ); // clear the setting of pin 10
 }
 
@@ -129,11 +129,11 @@ static void gpio_set_pin_state(int pin_no, int value)
 
 	if (value) // 1
 	{
-		writel(cmd, (addr+0x1c));
+		writel(cmd, (addr+0x1c)); // GPSET0
 	}
 	else // 0
 	{
-		writel(cmd, (addr+0x28));
+		writel(cmd, (addr+0x28)); //GPCLR0
 	}
 }
 
