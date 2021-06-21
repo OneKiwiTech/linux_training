@@ -1,5 +1,5 @@
 #include "gpio.h"
-#include "segment_display.h"
+#include "config.h"
 
 #ifdef GPIO_USE_LIB_WIRING_PI
   #include <wiringPi.h>
