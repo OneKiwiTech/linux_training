@@ -1,153 +1,236 @@
-#include "linux/version.h"
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <asm/uaccess.h>	/* for put_user */
-#include <linux/ioport.h>
-#include <asm/io.h>
+// Simple Character Device Driver Module for Raspberry Pi.
+/*
+ * DESCRIPTION:
+ *     a simple example of char device 
+ *     this char device can control the GPIO by file operation : write
+ *     to write specific message as command
+ * */
+
+#include <linux/module.h>   
+#include <linux/string.h>    
+#include <linux/fs.h>      
+#include <asm/uaccess.h>
+#include <linux/init.h>
+#include <linux/cdev.h>
+
+#include <linux/device.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/sched.h>
+#include <linux/interrupt.h>
+
+#include <linux/list.h>
+#include <linux/irq.h>
+#include <linux/slab.h>
+#include <linux/gpio.h>
+#include <linux/time.h>
+#include <linux/delay.h>
+
+//#include "RPI.h"
+
+#define LED0 22 
+#define LED1 27 
+
+#define MY_MAJOR  200
+#define MY_MINOR  0
+#define MY_DEV_COUNT 2
+
+#define GPIO_ANY_GPIO_DEVICE_DESC    "myLED"
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("ITtraining.com.tw");
+MODULE_DESCRIPTION("A Simple GPIO Device Driver module for RaspPi");
 
-#define SUCCESS 0
-#define DEVICE_NAME "io_dev" // Dev name as it appears in /proc/devices   
-#define BUF_LEN 80		     // Max length of the message from the device 
+static int     my_open( struct inode *, struct file * );
+static ssize_t my_read( struct file * ,        char *  , size_t, loff_t *);
+static ssize_t my_write(struct file * , const  char *  , size_t, loff_t *);
+static int     my_close(struct inode *, struct file * );
+struct file_operations my_fops = {
+        read    :       my_read,
+        write   :       my_write,
+        open    :       my_open,
+        release :       my_close,
+        owner   :       THIS_MODULE
+};
 
-static unsigned PORT = 0x20200000; 
-
-static unsigned RANGE =  0x40;
-unsigned cmd_word;
-unsigned out_word;
-u8 *addr;
+static char   *msg=NULL;
+struct cdev my_cdev;
 
 
-static int Major;		/* Major number assigned to our device driver */
-static int Device_Open = 0;	/* Is device open?  
-				 * Used to prevent multiple access to device */
-static char msg[BUF_LEN];	/* The msg the device will give when asked */
-static char *msg_Ptr;
+/*
+ * INIT_MODULE -- MODULE START --
+ * */
 
-static int device_open(struct inode *inode, struct file *file)
+int init_module(void)
 {
-	u32 cmd;   // command word to write
-	msg_Ptr = msg;
-	sprintf(msg,"Not implemented\n");
-	if (Device_Open)
-		return -EBUSY;
 
-	Device_Open++;
-	try_module_get(THIS_MODULE);
-	// addr = devm_ioremap(PORT, RANGE);
-	if (addr  != NULL)
+	dev_t devno;
+	unsigned int count = MY_DEV_COUNT; // apply for two minor for two LED
+	int err;
+
+	devno = MKDEV(MY_MAJOR, MY_MINOR);
+	register_chrdev_region(devno, count , "myLED");
+
+	// -- initial the char device 
+	cdev_init(&my_cdev, &my_fops);
+	my_cdev.owner = THIS_MODULE;
+	err = cdev_add(&my_cdev, devno, count);
+
+	if (err < 0)
 	{
-		cmd = 0;
-		writel(cmd, (addr+4)); // clear the setting of pin 10
-		cmd = 1;
-		writel(cmd, (addr+4)); // set pin 10 as output
-		return SUCCESS;
-    }
-    else
-      return -ENODEV;
+		printk("Device Add Error\n");
+		return -1;
+	}
 
+	// -- print message 
+	printk("<1> Hello World. This is myLED Driver.\n");
+	printk("'mknod /dev/myLED0 c %d 0'.\n", MY_MAJOR);
+	printk("'mknod /dev/myLED1 c %d 1'.\n", MY_MAJOR);
+
+	// -- make 
+	msg          = (char *)kmalloc(32, GFP_KERNEL);
+	if (msg !=NULL)
+		printk("malloc allocator address: 0x%p\n", msg);
+	
+	printk("***** LED GPIO Init ******************\n");
+	if(gpio_is_valid(LED0) < 0){
+		printk("gpio %d is valid error \n", LED0);
+		return -1;
+	}
+	if(gpio_is_valid(LED1) < 0){
+		printk("gpio %d is valid error \n", LED1);
+		return -1;
+	}
+	if(gpio_request(LED0,"LED0_GPIO") < 0){
+		printk("gpio %d is request error \n", LED0);
+		return -1;
+	}
+	if(gpio_request(LED1,"LED1_GPIO") < 0){
+		printk("gpio %d is request error \n", LED1);
+		return -1;
+	}
+	gpio_direction_output(LED0, 0);
+	gpio_direction_output(LED1, 0);
+        return 0;
 }
 
-static int device_release(struct inode *inode, struct file *file)
+
+
+/*
+ * CLEANUP_MODULE -- MODULE END --
+ * */
+void cleanup_module(void)
 {
-	writel(0x00, (addr+4));  // claer the setting before release
-	Device_Open--;		     //make ready for the next caller
-	module_put(THIS_MODULE);
+	dev_t devno;
+        printk("<1> Goodbye\n");
+
+	gpio_set_value(LED0,0);
+	gpio_set_value(LED1,0);
+	gpio_free(LED0);
+	gpio_free(LED1);
+	devno = MKDEV(MY_MAJOR, MY_MINOR);
+
+	if (msg){
+        /* release the malloc */
+        kfree(msg);
+	}
+
+	unregister_chrdev_region(devno, MY_DEV_COUNT);
+	cdev_del(&my_cdev);
+}
+
+
+/*
+ * file operation: OPEN 
+ * */
+static int my_open(struct inode *inod, struct file *fil)
+{
+	int major;
+	int minor;
+
+    major = imajor(inod);
+    minor = iminor(inod);
+    printk("\n*****Some body is opening me at major %d  minor %d*****\n",major, minor);
+    return 0;
+}
+
+
+
+
+/*
+ * file operation: READ
+ * */
+static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
+{
+	int major, minor;
+	char led_value;
+	short count;
+
+	major = MAJOR(filp->f_dentry->d_inode->i_rdev);
+	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+
+	switch(minor){
+		case 0:
+			led_value = gpio_get_value(LED0);
+			msg[0] = led_value;
+			len = 1;
+			break;
+		case 1:
+			led_value = gpio_get_value(LED1);
+			msg[0] = led_value;
+			len = 1;
+			break;
+		default:
+			led_value = -1;
+			len = 0;
+	}
+
+
+	count = copy_to_user(buff, msg, len);
+	printk("GPIO%d=%d, GPIO%d=%d\n",LED0 ,gpio_get_value(LED0),LED1,gpio_get_value(LED1));
 
 	return 0;
 }
 
-static ssize_t device_read(struct file *filp,	
-			   char *buffer,	
-			   size_t length,	
-			   loff_t * offset)
+
+/*
+ * file operation: WRITE
+ * */
+static ssize_t my_write(struct file *filp, const char *buff, size_t len, loff_t *off)
 {
-    int bytes_read = 1;
-    int index;
-    u32 res;   // status word to read
-	msg_Ptr = msg;
-	res = readl(addr+0x34);
-	msg[3] = res & 0xFF;
-	msg[2] = (res >> 8) & 0xFF;
-	msg[1] = (res >> 16) & 0xFF;
-	msg[0] = (res >> 24) & 0xFF;
-	msg[4] = 0; 
-	index = 4;
-	while (length && (index >= 0))
-	{
+	int minor;
+	short count;
 
-		put_user(*(msg_Ptr++), buffer++);
+	memset(msg, 0, 32);
+	// -- need to get the device minor number because we have two devices
+	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+	// -- copy the string from the user space program which open and write this device
+	count = copy_from_user( msg, buff, len );
 
-		length--;
-		index--;
-		bytes_read++;
-	}
-	return bytes_read;
+	if (msg[0]=='1') {
+		if(minor == 0) gpio_set_value(LED0, 1);     // LED 0 ON
+		if(minor == 1) gpio_set_value(LED1, 1);     // LED 1 ON
+	} else if (msg[0]=='0') {
+		if(minor == 0) gpio_set_value(LED0, 0);     // LED 0 OFF
+		if(minor == 1) gpio_set_value(LED1, 0);     // LED 1 OFF
+	}  else 
+		printk("Unknown command , 1 or 0 \n");
+
+	return len;
 }
 
-static ssize_t device_write(struct file *filp, const char *buff, size_t len, loff_t * off)
-{
-	int bytes_written = 1;
-	u32 cmd;   // command word to write
-	if (buff)
-	{
-		if (buff[0] == 1)
-		{
-			cmd = 1 << 10;
-			writel(cmd, (addr+0x1c));
-		}
-		else
-		{
-			if (buff[0] == 0)
-			{
-				cmd = 1 << 10;
-				writel(cmd, (addr+0x28));
-			}
-		}
-	}
-	return bytes_written;
-}
 
-static struct file_operations fops = {
-	.owner   = THIS_MODULE,
-	.open    = device_open,
-	.release = device_release,
-	.read    = device_read,
-	.write   = device_write
-};
 
-int init_module(void)
+/*
+ * file operation : CLOSE
+ * */
+static int my_close(struct inode *inod, struct file *fil)
 {
-	Major = register_chrdev(0,DEVICE_NAME, &fops);
-	if (Major < 0) {
-	  printk(KERN_ALERT "Registering char device failed with %d\n", Major);
-	  return Major;
-	}
-	// if(check_mem_region(PORT, RANGE) < 0)
-	{
-		unregister_chrdev(Major, DEVICE_NAME);
-		return -ENODEV;
-	}
-	// else
-	// {
-	// 	// if(request_mem_region(PORT, RANGE, DEVICE_NAME) == NULL)
-	// 	{
-	// 		unregister_chrdev(Major, DEVICE_NAME);
-	// 		return -ENODEV;
-	// 	}
-	// 	else
-	// 	{
-		
-		
-	// 	}
-	// }
-	return SUCCESS;
-}
+	int minor;
 
-void cleanup_module(void)
-{
-	printk(KERN_ALERT "Ade :-)\n");
-	release_mem_region(PORT, RANGE); 
-	unregister_chrdev(Major, DEVICE_NAME);
+	minor = MINOR(fil->f_dentry->d_inode->i_rdev);
+	printk("*****Some body is closing me at major %d*****\n",minor);
+
+	return 0;
 }
