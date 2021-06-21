@@ -10,9 +10,23 @@
 #include "fifo.h"
 #include "list.h"
 
+// #define   PROJ_USE_RANDOM_ENTER_TIME  
+// #define   PROJ_USE_RANDOM_SHOPPING_TIME 
+// #define   PROJ_USE_RANDOM_CHECKOUT_TIME 
+
+#ifdef DEBUG
+#define DEBUG_PRINT(...) do{ fprintf( stderr, __VA_ARGS__ ); } while( false )
+#else
+#define DEBUG_PRINT(...) do{ } while ( false )
+#endif
+
+#define MONITOR_PRINT(...) do{ fprintf( stdout, __VA_ARGS__ ); } while( false )
+
 typedef unsigned long uint32_t;
 typedef unsigned int uint16_t;
 
+
+#define  DEFAULT_CUSTOMER_ENTER_PERIOD         (2) //second
 #define  NUMBER_OF_CART              20
 #define  NUMBER_OF_SCANNER           10
 
@@ -22,11 +36,14 @@ typedef unsigned int uint16_t;
 
 #define  DEFAULT_CASHIER_CHECKOUT_PERIOD       (50)
 #define  DEFAULT_SCANNER_CHECKOUT_PERIOD       (20)
+#define  DEFAULT_SHOPPING_PERIOD               (50)
 
 #define MAX_ENTRY_COUNTER      20  // 20 * 100ms = 2000ms = 2s
 
 static sem_t cart_sem;
 static sem_t scanner_sem;
+
+static uint32_t  customer_enter_time = DEFAULT_CUSTOMER_ENTER_PERIOD;
 
 static uint32_t  id_cnt = 0;
 
@@ -47,6 +64,61 @@ void *scanner_checkout_thread(void *arg);
 void *manual_checkout_thread(void *arg);
 void *thread_return_cart(void *arg);
 
+
+int random_number(int min_num, int max_num)
+{
+    int result = 0, low_num = 0, hi_num = 0;
+
+    if (min_num < max_num)
+    {
+        low_num = min_num;
+        hi_num = max_num + 1; // include max_num in output
+    } else {
+        low_num = max_num + 1; // include max_num in output
+        hi_num = min_num;
+    }
+
+    srand(time(NULL));
+    result = (rand() % (hi_num - low_num)) + low_num;
+    return result;
+}
+
+static  uint32_t get_random_enter_time()
+{
+#ifdef PROJ_USE_RANDOM_ENTER_TIME
+   return random_number(1, 5);
+#else
+   return DEFAULT_CUSTOMER_ENTER_PERIOD;
+#endif   
+}
+
+static  uint32_t get_random_shopping_time()
+{
+#ifdef PROJ_USE_RANDOM_SHOPPING_TIME    
+    random_number(2, 20);
+#else
+    return DEFAULT_SHOPPING_PERIOD;
+#endif
+}
+
+static  uint32_t get_random_cashier_checkout_time()
+{
+#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
+    random_number(20, 70);
+#else
+    return DEFAULT_CASHIER_CHECKOUT_PERIOD;
+#endif
+}
+
+static  uint32_t get_random_scanner_checkout_time()
+{
+#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
+    random_number(10, 40);
+#else
+    return DEFAULT_SCANNER_CHECKOUT_PERIOD;
+#endif
+}
+
 int main()
 {
     int res;
@@ -62,17 +134,15 @@ int main()
     // ================= INIT SEMAPHORE ==============
     res = sem_init(&cart_sem, 0, NUMBER_OF_CART);
     if (res != 0) {
-        perror("cart_sem initialization failed");
+        DEBUG_PRINT("cart_sem initialization failed");
         exit(EXIT_FAILURE);
     }
 
     res = sem_init(&scanner_sem, 0, NUMBER_OF_SCANNER);
     if (res != 0) {
-        perror("scanner_sem initialization failed");
+        DEBUG_PRINT("scanner_sem initialization failed");
         exit(EXIT_FAILURE);
     }
-
-    
 
     //=================Init link list===================
     // Init return cart list
@@ -86,14 +156,14 @@ int main()
     res = pthread_create(&shopping_thread, NULL, thread_shopping_tracking, (void *)NULL);
     if (res != 0)
     {
-        perror("Thread creation failed");
+        DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
    
     res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
     {
-        perror("Thread creation failed");
+        DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
 
@@ -102,7 +172,7 @@ int main()
         res = pthread_create(&cashier_thread[i], NULL, manual_checkout_thread, (void *)&manual_checkout_fifo[i]);
         if (res != 0)
         {
-            perror("Thread creation failed");
+            DEBUG_PRINT("Thread creation failed");
             exit(EXIT_FAILURE);
         }
     }
@@ -112,13 +182,13 @@ int main()
         res = pthread_create(&scanner_thread[i], NULL, scanner_checkout_thread, (void *)&scanner_checkout_fifo[i]);
         if (res != 0)
         {
-            perror("Thread creation failed");
+            DEBUG_PRINT("Thread creation failed");
             exit(EXIT_FAILURE);
         }
     }
 
     // Waiting all thread finish
-    printf("Waiting for thread to finish...\n");
+    DEBUG_PRINT("Waiting for thread to finish...\n");
     pthread_join(shopping_thread, &thread_result);
     pthread_join(return_thread, &thread_result);
     for (i = 0; i < 3; i++)
@@ -135,7 +205,7 @@ int main()
     sem_destroy(&cart_sem);
     sem_destroy(&scanner_sem);
 
-    printf("Thread joined, it returned %s\n", (char *)thread_result);
+    DEBUG_PRINT("Thread joined, it returned %s\n", (char *)thread_result);
 
     exit(EXIT_SUCCESS);
 }
@@ -155,14 +225,14 @@ seconds.
 4. Customers without a handheld scanner go to one of three cashiers
 */
 
-void sig_handler(int signum) 
+void sig_customer_enter_timer(int signum) 
 {
   bool has_canner = false;
 
-  printf("Inside handler function\n");
+  DEBUG_PRINT("Inside handler function\n");
   if (sem_trywait(&cart_sem) < 0)
   {
-    printf("Empty cart, go backhome!!\r\n");
+    DEBUG_PRINT("Empty cart, go backhome!!\r\n");
   }else 
   {
     // Add to shopping queue
@@ -175,12 +245,12 @@ void sig_handler(int signum)
     id_cnt++;
   }
 
-  alarm(2);
+  alarm(customer_enter_time);
 }
 
 void  customer_prepare_checkout(struct customer_info_obj *obj)
 {
-    printf("Customer %d need checkout\r\n", obj->val);
+    DEBUG_PRINT("Customer %d need checkout\r\n", obj->val);
 
     //TODO: choose cashier or scanner queue
     if (obj->has_scanner)
@@ -198,10 +268,10 @@ void *thread_shopping_tracking(void *arg)
     int  finish_id = 0;
     struct customer_info_obj *curr_cust_obj;
 
-    printf("THREAD 01 is running. Argument was %s\n", (char *)arg);
-    signal(SIGALRM,sig_handler);
+    DEBUG_PRINT("THREAD shopping is running. Argument was %s\n", (char *)arg);
+    signal(SIGALRM,sig_customer_enter_timer);
 
-    alarm(2);
+    alarm(customer_enter_time);
     while(run)
     {
         finish_id = list_count_down(&shopping_list, curr_cust_obj);
@@ -212,7 +282,7 @@ void *thread_shopping_tracking(void *arg)
         usleep(100*1000); // 100ms
     }
 
-    pthread_exit("THREAD 01 is exited");
+    pthread_exit("THREAD shopping is exited");
 }
 
 /*================================RETURN CART======================================*/
@@ -228,7 +298,7 @@ void *thread_return_cart(void *arg)
     int  finish_id = 0;
     struct customer_info_obj *obj = NULL;
 
-    printf("THREAD 03 is running. Argument was %s\n", (char *)arg);
+    DEBUG_PRINT("THREAD return cart is running. Argument was %s\n", (char *)arg);
 
     while(run)
     {
@@ -240,7 +310,7 @@ void *thread_return_cart(void *arg)
         usleep(100*1000); // 100ms
     }
 
-    pthread_exit("THREAD 03 is exited");
+    pthread_exit("THREAD return cart is exited");
 }
 
 
