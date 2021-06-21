@@ -35,7 +35,7 @@ static int device_open(struct inode *inode, struct file *file)
 
 	Device_Open++;
 	try_module_get(THIS_MODULE);
-	addr = devm_ioremap(PORT, RANGE);
+	// addr = devm_ioremap(PORT, RANGE);
 	if (addr  != NULL)
 	{
 		cmd = 0;
