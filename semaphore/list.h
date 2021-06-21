@@ -12,6 +12,7 @@ struct customer_info_obj
 struct list_object_struct
 {
     int    meta_data;
+    int    counter;
     struct customer_info_obj *head;
     struct customer_info_obj *curr;
 };

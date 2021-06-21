@@ -26,6 +26,9 @@ typedef unsigned long uint32_t;
 typedef unsigned int uint16_t;
 
 
+#define   DEFAULT_SHOPPING_CHECKED_TIME       (5)
+#define   DEFAULT_SHOPPING_CHECKED_PERCENT    (25)
+
 #define  DEFAULT_CUSTOMER_ENTER_PERIOD         (2) //second
 #define  NUMBER_OF_CART              20
 #define  NUMBER_OF_SCANNER           10
@@ -81,6 +84,17 @@ int random_number(int min_num, int max_num)
     srand(time(NULL));
     result = (rand() % (hi_num - low_num)) + low_num;
     return result;
+}
+
+// https://stackoverflow.com/questions/26892104/selecting-a-random-number-in-a-set-of-numbers-in-c
+static int get_random_check_during_shopping(int max_num, int percent)
+{
+   int  range =  (max_num*percent) / 100;
+   
+   int min = ( rand() % max_num ); //random number 0-20        
+   int r = ( rand() % (range-min) ) + min; //random number will be greater than min but less than range 
+
+   return r;
 }
 
 static  uint32_t get_random_enter_time()
@@ -248,9 +262,16 @@ void sig_customer_enter_timer(int signum)
   alarm(customer_enter_time);
 }
 
+#define   CASHIER_QUEUE_LEN_THRESHOLD       5
+
 void  customer_prepare_checkout(struct customer_info_obj *obj)
 {
+    int i = 0;
+    bool found = false;
+
     DEBUG_PRINT("Customer %d need checkout\r\n", obj->val);
+
+
 
     //TODO: choose cashier or scanner queue
     if (obj->has_scanner)
@@ -258,7 +279,25 @@ void  customer_prepare_checkout(struct customer_info_obj *obj)
         scanner_checkout_add_to_queue(obj->val);
     }else 
     {
-        manual_checkout_add_to_queue(obj->val);
+        // TODO: check queue length of cashier 
+        for (i = 0; i < MAX_CASHIER_QUEUE; i++)
+        {
+            if (manual_checkout_fifo[i].fifo_n_data >= CASHIER_QUEUE_LEN_THRESHOLD)
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (found)
+        {
+            //TODO: mark this object has manual checkout time
+            scanner_checkout_add_to_queue(obj->val);
+        }   
+        else
+        {
+            manual_checkout_add_to_queue(obj->val);
+        }
     }
 }
 
@@ -279,6 +318,13 @@ void *thread_shopping_tracking(void *arg)
         {
             customer_prepare_checkout(curr_cust_obj);
         }
+
+        // Random checked all customer shopping
+
+
+        get_random_check_during_shopping(shopping_list.counter, DEFAULT_SHOPPING_CHECKED_PERCENT);
+        curr_cust_obj->remain_time += DEFAULT_SHOPPING_CHECKED_TIME;
+
         usleep(100*1000); // 100ms
     }
 
