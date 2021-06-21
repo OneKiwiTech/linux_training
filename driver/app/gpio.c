@@ -1,7 +1,10 @@
+#if GPIO_USE_LIB_BCM35
 #include <bcm2835.h>
+#endif
 
-#define GPIO_USE_LIB_WIRING_PI
-// #define GPIO_USE_LIB_BCM35
+#ifdef GPIO_USE_LIB_WIRING_PI
+#include <wiringPi.h>
+#endif
 
 void gpio_init()
 {
