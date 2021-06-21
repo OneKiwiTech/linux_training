@@ -102,7 +102,7 @@ int init_module(void)
 		printk("gpio %d is valid error \n", LED1);
 		return -1;
 	}
-	if(gpio_request(LED0,"LED0_GPIO") < 0){
+	if(gpio_request(LED0,"LEfD0_GPIO") < 0){
 		printk("gpio %d is request error \n", LED0);
 		return -1;
 	}
@@ -163,12 +163,12 @@ static int my_open(struct inode *inod, struct file *fil)
  * */
 static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
 {
-	int major, minor;
+	// int major, minor;
 	char led_value;
 	short count;
 
-	major = MAJOR(filp->f_dentry->d_inode->i_rdev);
-	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+	// major = MAJOR(filp->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
 
 	switch(minor){
 		case 0:
@@ -199,12 +199,12 @@ static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
  * */
 static ssize_t my_write(struct file *filp, const char *buff, size_t len, loff_t *off)
 {
-	int minor;
+	int minor = 0;
 	short count;
 
 	memset(msg, 0, 32);
 	// -- need to get the device minor number because we have two devices
-	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
 	// -- copy the string from the user space program which open and write this device
 	count = copy_from_user( msg, buff, len );
 
@@ -229,7 +229,7 @@ static int my_close(struct inode *inod, struct file *fil)
 {
 	int minor;
 
-	minor = MINOR(fil->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(fil->f_dentry->d_inode->i_rdev);
 	printk("*****Some body is closing me at major %d*****\n",minor);
 
 	return 0;
