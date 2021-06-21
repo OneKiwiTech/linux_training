@@ -26,9 +26,7 @@ const char* test_string = "0123456789ABCDEF";
  */
 
 // GPIO Pin Mapping
-#ifdef GPIO_USE_LIB_WIRING_PI
-  static int segments [7] = {  6,  5,  4,  3,  2,  1, 0 } ;
-#endif 
+ static int segments [7] = {  6,  5,  4,  3,  2,  1, 0 } ;
 
 static const int segmentDigits [] =
 {
