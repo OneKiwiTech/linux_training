@@ -163,7 +163,8 @@ static int my_open(struct inode *inod, struct file *fil)
  * */
 static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
 {
-	// int major, minor;
+	int major = 0;
+	int minor = 0;
 	char led_value;
 	short count;
 
