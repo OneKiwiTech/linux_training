@@ -27,20 +27,16 @@
 #include <linux/time.h>
 #include <linux/delay.h>
 
-//#include "RPI.h"
-
-#define LED0 22 
-#define LED1 27 
-
 #define MY_MAJOR  200
 #define MY_MINOR  0
-#define MY_DEV_COUNT 2
+#define MY_DEV_COUNT 1
+#define MY_MAX_GPIO_COUNT  7
 
-#define GPIO_ANY_GPIO_DEVICE_DESC    "myLED"
+#define GPIO_DEVICE_DESC    "caothinh_driver"
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("ITtraining.com.tw");
-MODULE_DESCRIPTION("A Simple GPIO Device Driver module for RaspPi");
+MODULE_AUTHOR("caothinh");
+MODULE_DESCRIPTION("A Simple 7 Segment Display Device Driver module");
 
 static int     my_open( struct inode *, struct file * );
 static ssize_t my_read( struct file * ,        char *  , size_t, loff_t *);
@@ -60,7 +56,8 @@ struct cdev my_cdev;
 
 // LED segment data
 static int curr_display_data = 0;
-static int segments [7] = {  6,  5,  4,  3,  2,  1, 0 } ;
+// https://forums.ni.com/t5/Community-Documents/LabVIEW-BCM2835-Library-for-Raspberry-Pi/ta-p/3539080?profile.language=en
+static int segments [7] = {  2, 3,  4,  17,  27 ,  22, 10 } ;
 
 static const int segmentDigits [] =
 {
@@ -96,11 +93,12 @@ int init_module(void)
 {
 
 	dev_t devno;
-	unsigned int count = MY_DEV_COUNT; // apply for two minor for two LED
+	unsigned int count = MY_DEV_COUNT;
 	int err;
+	int i = 0;
 
 	devno = MKDEV(MY_MAJOR, MY_MINOR);
-	register_chrdev_region(devno, count , "myLED");
+	register_chrdev_region(devno, count , "caothinh_driver");
 
 	// -- initial the char device 
 	cdev_init(&my_cdev, &my_fops);
@@ -114,49 +112,46 @@ int init_module(void)
 	}
 
 	// -- print message 
-	printk("<1> Hello World. This is myLED Driver.\n");
-	printk("'mknod /dev/myLED0 c %d 0'.\n", MY_MAJOR);
-	printk("'mknod /dev/myLED1 c %d 1'.\n", MY_MAJOR);
+	printk("<1> Hello World. This is caothinh_driver Driver.\n");
+	printk("'mknod /dev/caothinh_driver0 c %d 0'.\n", MY_MAJOR);
 
 	// -- make 
-	msg          = (char *)kmalloc(32, GFP_KERNEL);
+	msg   = (char *)kmalloc(32, GFP_KERNEL);
 	if (msg !=NULL)
+	{
 		printk("malloc allocator address: 0x%p\n", msg);
+	}
 	
-	printk("***** LED GPIO Init ******************\n");
-	if(gpio_is_valid(LED0) < 0){
-		printk("gpio %d is valid error \n", LED0);
-		return -1;
+	printk("***** 7 SEGMENT LED GPIO Init ******************\n");
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		if(gpio_is_valid(segments[i]) < 0){
+			printk("gpio %d is valid error \n", segments[i]);
+			return -1;
+		}
 	}
-	if(gpio_is_valid(LED1) < 0){
-		printk("gpio %d is valid error \n", LED1);
-		return -1;
-	}
-	if(gpio_request(LED0,"LEfD0_GPIO") < 0){
-		printk("gpio %d is request error \n", LED0);
-		return -1;
-	}
-	if(gpio_request(LED1,"LED1_GPIO") < 0){
-		printk("gpio %d is request error \n", LED1);
-		return -1;
-	}
-	gpio_direction_output(LED0, 0);
-	gpio_direction_output(LED1, 0);
-        return 0;
 
-	gpio_set_default_state();
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		if(gpio_request(segments[i], "LED_GPIO") < 0){
+			printk("gpio %d is request error \n", segments[i]);
+			return -1;
+		}
+	}
+
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		gpio_direction_output(segments[i], 0);
+	}
+
+    return 0;
 }
 
 
-static void gpio_set_default_state()
+static void segment_disp_digit(int d)
 {
-	gpio_direction_output(LED1, 0);
-}
-
-static void displayDigits(int d)
-{
-  int segment ;
-  int index, d, segVal ;
+ 	int segment ;
+ 	int index, d, segVal ;
 
 	for (segment = 0 ; segment < 7 ; ++segment)
 	{
@@ -182,14 +177,19 @@ static void displayDigits(int d)
 void cleanup_module(void)
 {
 	dev_t devno;
-        printk("<1> Goodbye\n");
+	int i;
+    printk("<1> Goodbye\n");
 
-	gpio_set_value(LED0,0);
-	gpio_set_value(LED1,0);
-	gpio_free(LED0);
-	gpio_free(LED1);
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		gpio_set_value(segments[i],0);
+	}
+	
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		gpio_free(segments[i],0);
+	}
 	devno = MKDEV(MY_MAJOR, MY_MINOR);
-
 	if (msg){
         /* release the malloc */
         kfree(msg);
@@ -210,7 +210,8 @@ static int my_open(struct inode *inod, struct file *fil)
 
     major = imajor(inod);
     minor = iminor(inod);
-    printk("\n*****Some body is opening me at major %d  minor %d*****\n",major, minor);
+    printk("\n*****Driver major %d  minor %d*****\n",major, minor);
+
     return 0;
 }
 
@@ -222,35 +223,22 @@ static int my_open(struct inode *inod, struct file *fil)
  * */
 static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
 {
-	int major = 0;
-	int minor = 0;
-	char led_value;
+	char led_value = 0;
 	short count;
 
-	// major = MAJOR(filp->f_dentry->d_inode->i_rdev);
-	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
-
-	switch(minor){
-		case 0:
-			led_value = gpio_get_value(LED0);
-			msg[0] = led_value;
-			len = 1;
-			break;
-		case 1:
-			led_value = gpio_get_value(LED1);
-			msg[0] = led_value;
-			len = 1;
-			break;
-		default:
-			led_value = -1;
-			len = 0;
+	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
+	{
+		led_value |= gpio_get_value(segments[i]);
+		led_value <<= 1;
 	}
 
-
+	// Copy to user buffer
+	msg[0] = led_value;
+	len = 1;
 	count = copy_to_user(buff, msg, len);
-	printk("GPIO%d=%d, GPIO%d=%d\n",LED0 ,gpio_get_value(LED0),LED1,gpio_get_value(LED1));
+	printk("Segment value = %d\n", led_value);
 
-	return 0;
+	return count;
 }
 
 
@@ -259,23 +247,11 @@ static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
  * */
 static ssize_t my_write(struct file *filp, const char *buff, size_t len, loff_t *off)
 {
-	int minor = 0;
-	short count;
+	short count = 0;
 
-	memset(msg, 0, 32);
-	// -- need to get the device minor number because we have two devices
-	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
-	// -- copy the string from the user space program which open and write this device
-	count = copy_from_user( msg, buff, len );
+	count = copy_from_user( &curr_display_data, buff, 1 );
 
-	if (msg[0]=='1') {
-		if(minor == 0) gpio_set_value(LED0, 1);     // LED 0 ON
-		if(minor == 1) gpio_set_value(LED1, 1);     // LED 1 ON
-	} else if (msg[0]=='0') {
-		if(minor == 0) gpio_set_value(LED0, 0);     // LED 0 OFF
-		if(minor == 1) gpio_set_value(LED1, 0);     // LED 1 OFF
-	}  else 
-		printk("Unknown command , 1 or 0 \n");
+	printk("Receive data %d len %d\n", curr_display_data, len);
 
 	return len;
 }
@@ -287,10 +263,7 @@ static ssize_t my_write(struct file *filp, const char *buff, size_t len, loff_t 
  * */
 static int my_close(struct inode *inod, struct file *fil)
 {
-	int minor;
-
-	// minor = MINOR(fil->f_dentry->d_inode->i_rdev);
-	printk("*****Some body is closing me at major %d*****\n",minor);
+	printk("*****Device driver is closed \n");
 
 	return 0;
 }

@@ -14,8 +14,7 @@ int led_segment_write(int fd, char data)
 {
     char wbuf[2] = {0};
 
-    wbuf[0] = 1;
-    wbuf[1] = data;
+    wbuf[0] = data;
 
     return ( write(fd, wbuf, sizeof(wbuf)) );
 }
