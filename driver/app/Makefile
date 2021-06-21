@@ -1,7 +1,7 @@
 HEADERS = gpio.h
 
 all: gpio.o
-	gcc *.o segment_display.c -o main -lpthread
+	gcc *.o main.c -o main -lwiringPi
 
 gpio.o: gpio.c $(HEADERS)
 	gcc -c gpio.c -o gpio.o
