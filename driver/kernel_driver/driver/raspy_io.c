@@ -129,19 +129,19 @@ int init_module(void)
 		unregister_chrdev(Major, DEVICE_NAME);
 		return -ENODEV;
 	}
-	else
-	{
-		// if(request_mem_region(PORT, RANGE, DEVICE_NAME) == NULL)
-		{
-			unregister_chrdev(Major, DEVICE_NAME);
-			return -ENODEV;
-		}
-		else
-		{
+	// else
+	// {
+	// 	// if(request_mem_region(PORT, RANGE, DEVICE_NAME) == NULL)
+	// 	{
+	// 		unregister_chrdev(Major, DEVICE_NAME);
+	// 		return -ENODEV;
+	// 	}
+	// 	else
+	// 	{
 		
 		
-		}
-	}
+	// 	}
+	// }
 	return SUCCESS;
 }
 
