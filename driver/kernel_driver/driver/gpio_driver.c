@@ -57,7 +57,7 @@ struct cdev my_cdev;
 // LED segment data
 static int curr_display_data = 0;
 // https://forums.ni.com/t5/Community-Documents/LabVIEW-BCM2835-Library-for-Raspberry-Pi/ta-p/3539080?profile.language=en
-static int segments [7] = {  2, 3,  4,  17,  27 ,  22, 10 } ;
+static int segments [7] = {  4,  17,  27,  22, 5,  6, 13 } ;
 
 static const int segmentDigits [] =
 {
