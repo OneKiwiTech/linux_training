@@ -35,7 +35,7 @@ const char* test_string = "0123456789ABCDEF";
 
 // https://forums.ni.com/t5/Community-Documents/LabVIEW-BCM2835-Library-for-Raspberry-Pi/ta-p/3539080?profile.language=en
 #ifdef GPIO_USE_LIB_BCM35
- static int segments [7] = {  4,  17,  27,  22, 5,  6, 26 } ;
+ static int segments [7] = {  4,  17,  27,  22, 5,  6, 13 } ;
 #endif
 
 static const int segmentDigits [] =
