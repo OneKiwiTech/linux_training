@@ -167,7 +167,7 @@ static void segment_disp_digit(int d)
 		}
 
 		segVal = segmentDigits [index * 7 + segment] ;
-		gpio_set_value (segments [segment], segVal) ;
+		gpio_set_value (segments [segment], !segVal) ;
 	}
 }
 
@@ -182,7 +182,7 @@ void cleanup_module(void)
 
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
-		gpio_set_value(segments[i],0);
+		gpio_set_value(segments[i],1);
 	}
 	
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
