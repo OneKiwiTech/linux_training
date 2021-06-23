@@ -3,6 +3,7 @@
 #include<stdbool.h>
 #include "list.h"
 
+// https://www.thegeekstuff.com/2012/08/c-linked-list-example/
 struct customer_info_obj* create_list(struct list_object_struct* obj, int id)
 {
     printf("\n creating list with headnode as [%d]\n",id);
@@ -16,26 +17,34 @@ struct customer_info_obj* create_list(struct list_object_struct* obj, int id)
     ptr->next = NULL;
 
     obj->head = obj->curr = ptr;
+
     return ptr;
 }
 
 struct customer_info_obj* add_to_list(struct list_object_struct* obj, int id, bool has_scanner)
 {
+    printf("add_to_list");
     if(NULL == obj->head)
     {
-        return (create_list(obj, id));
+        printf("Create list\n");
+        return create_list(obj, id);
     }
 
+    printf("call malloc\n");
+    
     struct customer_info_obj *ptr = (struct customer_info_obj*)malloc(sizeof(struct customer_info_obj));
     if(NULL == ptr)
     {
         printf("\n Node creation failed \n");
-        return NULL;
+        exit(0);
     }
+
+
     ptr->id = id;
     ptr->remain_time = obj->meta_data; //50*100ms = 5s
     ptr->next = NULL;
 
+     printf("Add to end of list\n");
     // Add to the end of list
     {
         obj->curr->next = ptr;

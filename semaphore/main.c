@@ -205,7 +205,7 @@ int main()
         DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
- #if 0
+ #if 1
 
     res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
@@ -280,6 +280,8 @@ void sig_customer_enter_timer(int signum)
 {
   bool has_canner = false;
 
+ DEBUG_PRINT("Customer enters\n");
+
   if (sem_trywait(&cart_sem) < 0)
   {
     DEBUG_PRINT("Empty cart, go backhome!!\r\n");
@@ -290,8 +292,10 @@ void sig_customer_enter_timer(int signum)
     About half the customers take a handheld scanner with them, there are 10 handheld
     scanners
     */
-   DEBUG_PRINT("Customer takes scanner!!\r\n");
+   
     has_canner = (sem_trywait(&scanner_sem) > 0)?true:false; 
+
+    DEBUG_PRINT("Customer is added to shopping list!!\r\n");
     add_to_list(&shopping_list, id_cnt, has_canner);
     id_cnt++;
   }
@@ -348,9 +352,10 @@ void *thread_shopping_tracking(void *arg)
     while(run)
     {
         if ( list_count_down(&shopping_list, curr_cust_obj) > 0)
-        {
+        {   
+            DEBUG_PRINT("==>customer need checkout\n");
             delete_from_list(&shopping_list, curr_cust_obj);
-            customer_prepare_checkout(curr_cust_obj);
+            // customer_prepare_checkout(curr_cust_obj);
         }
 
 #if USE_RANDOM_PERIOD

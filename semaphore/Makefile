@@ -6,7 +6,7 @@ all: fifo.o list.o
 fifo.o: fifo.c $(HEADERS)
 	gcc -c fifo.c -o fifo.o
 
-list.o: list.o
+list.o: list.c
 	gcc -c list.c -o list.o
 
 clean:

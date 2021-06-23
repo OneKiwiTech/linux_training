@@ -29,13 +29,13 @@ const char* test_string = "0123456789ABCDEF";
 // https://pinout.xyz/pinout/wiringpi
 
 #ifdef GPIO_USE_LIB_WIRING_PI
- static int segments [7] = {  8,  9,  7,  0, 2,  3, 12 } ;
+ static int segments [7] = {  4,  17,  27,  22, 5,  6, 26 } ;
 #endif
 
 
 // https://forums.ni.com/t5/Community-Documents/LabVIEW-BCM2835-Library-for-Raspberry-Pi/ta-p/3539080?profile.language=en
 #ifdef GPIO_USE_LIB_BCM35
- static int segments [7] = {  2, 3,  4,  17,  27 ,  22, 10 } ;
+ static int segments [7] = {  4,  17,  27,  22, 5,  6, 26 } ;
 #endif
 
 static const int segmentDigits [] =
