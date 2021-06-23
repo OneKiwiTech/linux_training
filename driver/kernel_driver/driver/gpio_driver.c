@@ -133,7 +133,7 @@ int init_module(void)
 
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
-		if(gpio_request(segments[i], "LED_GPIO") < 0){
+		if(gpio_request(segments[i], THIS_MODULE->name) < 0){
 			printk("gpio %d is request error \n", segments[i]);
 			return -1;
 		}
