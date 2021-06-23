@@ -33,7 +33,7 @@ void gpio_set_pin_mode_ouput(int gpio_pin)
 void gpio_set_pin_state(int gpio_pin, int state)
 {
 #ifdef GPIO_USE_LIB_WIRING_PI
-    digitalWrite (gpio_pin, state) ; 
+    digitalWrite (gpio_pin, !state) ; 
 #endif
 #ifdef GPIO_USE_LIB_BCM35
     bcm2835_gpio_write(gpio_pin, !state);
