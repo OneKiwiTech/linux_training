@@ -1,3 +1,5 @@
+#include "config.h"
+
 #if GPIO_USE_LIB_BCM35
 #include <bcm2835.h>
 #endif
