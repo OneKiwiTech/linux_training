@@ -140,7 +140,7 @@ int init_module(void)
 
 	if(gpio_request(segments[0], "LED0_GPIO") < 0)
 	{
-		printk("gpio %d is request error \n", segments[i]);
+		printk("gpio %d is request error \n", segments[0]);
 		return -1;
 	}
 
