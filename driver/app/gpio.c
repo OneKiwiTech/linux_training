@@ -20,21 +20,21 @@ void gpio_init()
 void gpio_set_pin_mode_ouput(int gpio_pin)
 {
 #ifdef GPIO_USE_LIB_WIRING_PI
-    bcm2835_gpio_fsel(gpio_pin, BCM2835_GPIO_FSEL_OUTP);
+      pinMode (gpio_pin, OUTPUT) ; 
 #endif 
 
 #ifdef GPIO_USE_LIB_BCM35
-    pinMode (gpio_pin, OUTPUT) ; 
+    bcm2835_gpio_fsel(gpio_pin, BCM2835_GPIO_FSEL_OUTP);
 #endif    
 }
 
 void gpio_set_pin_state(int gpio_pin, int state)
 {
 #ifdef GPIO_USE_LIB_WIRING_PI
-    bcm2835_gpio_write(gpio_pin, state);
+    pinDigitalWrite (gpio_pin, state) ; 
 #endif
 #ifdef GPIO_USE_LIB_BCM35
-    pinDigitalWrite (gpio_pin, state) ; 
+    bcm2835_gpio_write(gpio_pin, state);
 #endif 
 }
 
