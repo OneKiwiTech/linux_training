@@ -29,12 +29,14 @@
 
 #define MY_MAJOR  200
 #define MY_MINOR  0
-#define MY_DEV_COUNT 1
+
 #define MY_MAX_GPIO_COUNT  7
+#define MY_DEV_COUNT 		MY_MAX_GPIO_COUNT
 
 #define GPIO_DEVICE_DESC    "caothinh_driver"
 
 // https://gist.github.com/itrobotics/b94d81acafaf6278ef4b
+// 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("caothinh");
 MODULE_DESCRIPTION("A Simple 7 Segment Display Device Driver module");
@@ -58,7 +60,7 @@ struct cdev my_cdev;
 // LED segment data
 static int curr_display_data = 0;
 // https://forums.ni.com/t5/Community-Documents/LabVIEW-BCM2835-Library-for-Raspberry-Pi/ta-p/3539080?profile.language=en
-static int segments [7] = {  22,  17,  27,  22, 5,  6, 13 } ;
+static int segments [7] = {  4,  17,  27,  22, 5,  6, 13 } ;
 
 static const int segmentDigits [] =
 {
