@@ -124,7 +124,7 @@ int main (void)
       c = *str_ptr++;
       printf("%c\n", c);
       displayDigits(c);
-      delay (3000) ;
+      delay (1000) ;
     }
   }
 
