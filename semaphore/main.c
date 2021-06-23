@@ -13,6 +13,10 @@
 // #define   PROJ_USE_RANDOM_ENTER_TIME  
 // #define   PROJ_USE_RANDOM_SHOPPING_TIME 
 // #define   PROJ_USE_RANDOM_CHECKOUT_TIME 
+#define TEST_MODE
+
+
+#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_PRINT(...) do{ fprintf( stderr, __VA_ARGS__ ); } while( false )
@@ -37,9 +41,17 @@ typedef unsigned int uint16_t;
 #define  MAX_SCANNER_QUEUE          (2)
 #define  MAX_TOTAL_QUEUE            (MAX_CASHIER_QUEUE + MAX_SCANNER_QUEUE)
 
-#define  DEFAULT_CASHIER_CHECKOUT_PERIOD       (50)
-#define  DEFAULT_SCANNER_CHECKOUT_PERIOD       (20)
-#define  DEFAULT_SHOPPING_PERIOD               (50)
+#ifdef TEST_MODE
+    #define  DEFAULT_CASHIER_CHECKOUT_PERIOD       (5)
+    #define  DEFAULT_SCANNER_CHECKOUT_PERIOD       (2)
+    #define  DEFAULT_SHOPPING_PERIOD               (5)
+    #define  DEFAULT_RETURN_CART_PERIOD            (2)
+#else
+    #define  DEFAULT_CASHIER_CHECKOUT_PERIOD       (50)
+    #define  DEFAULT_SCANNER_CHECKOUT_PERIOD       (20)
+    #define  DEFAULT_SHOPPING_PERIOD               (50)
+    #define  DEFAULT_RETURN_CART_PERIOD            (20)
+#endif
 
 #define MAX_ENTRY_COUNTER      20  // 20 * 100ms = 2000ms = 2s
 
@@ -48,7 +60,7 @@ static sem_t scanner_sem;
 
 static uint32_t  customer_enter_time = DEFAULT_CUSTOMER_ENTER_PERIOD;
 
-static uint32_t  id_cnt = 0;
+static uint32_t  id_cnt = 1;
 
 // Declare list object
 struct list_object_struct return_cart_list;
@@ -67,6 +79,7 @@ void *scanner_checkout_thread(void *arg);
 void *manual_checkout_thread(void *arg);
 void *thread_return_cart(void *arg);
 
+void *thread_monitor_run(void *arg);
 
 int random_number(int min_num, int max_num)
 {
@@ -133,6 +146,18 @@ static  uint32_t get_random_scanner_checkout_time()
 #endif
 }
 
+void* thread_monitor_run(void* arg)
+{
+    while(1)
+    {
+        DEBUG_PRINT("Customer count = %d\n", id_cnt);
+        usleep(1000*1000);
+        // system("cls");
+    }
+
+    return NULL;
+}
+
 int main()
 {
     int res;
@@ -142,6 +167,7 @@ int main()
     pthread_t cashier_thread[3];
     pthread_t scanner_thread[2];
     pthread_t return_thread;
+    pthread_t monitor_thread;
 
     void *thread_result;
 
@@ -160,26 +186,34 @@ int main()
 
     //=================Init link list===================
     // Init return cart list
-    return_cart_list.meta_data = 20;  // 20 * 100ms = 2 seconds
-    create_list(&return_cart_list, 0);
-
-    shopping_list.meta_data = 50;  // 20 * 100ms = 2 seconds
-    create_list(&shopping_list, 0);
+    return_cart_list.meta_data = DEFAULT_RETURN_CART_PERIOD;  // 20 * 100ms = 2 seconds
+    shopping_list.meta_data = DEFAULT_SHOPPING_PERIOD;  // 20 * 100ms = 5 seconds
     
     //=================Init THREAD=======================
-    res = pthread_create(&shopping_thread, NULL, thread_shopping_tracking, (void *)NULL);
+     
+    res = pthread_create(&monitor_thread, NULL, thread_monitor_run, (void *)NULL);
     if (res != 0)
     {
         DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
    
+
+    res = pthread_create(&shopping_thread, NULL,  thread_shopping_tracking, (void *)NULL);
+    if (res != 0)
+    {
+        DEBUG_PRINT("Thread creation failed");
+        exit(EXIT_FAILURE);
+    }
+ #if 0
+
     res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
     {
         DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
+
 
     for (i = 0; i < 3; i++)
     {
@@ -191,6 +225,7 @@ int main()
         }
     }
 
+  
     for (i = 0; i < 2; i++)
     {
         res = pthread_create(&scanner_thread[i], NULL, scanner_checkout_thread, (void *)&scanner_checkout_fifo[i]);
@@ -200,11 +235,13 @@ int main()
             exit(EXIT_FAILURE);
         }
     }
+    #endif
 
     // Waiting all thread finish
     DEBUG_PRINT("Waiting for thread to finish...\n");
     pthread_join(shopping_thread, &thread_result);
     pthread_join(return_thread, &thread_result);
+    pthread_join(monitor_thread, &thread_result);
     for (i = 0; i < 3; i++)
     {
         pthread_join(cashier_thread[i], &thread_result);
@@ -243,7 +280,6 @@ void sig_customer_enter_timer(int signum)
 {
   bool has_canner = false;
 
-  DEBUG_PRINT("Inside handler function\n");
   if (sem_trywait(&cart_sem) < 0)
   {
     DEBUG_PRINT("Empty cart, go backhome!!\r\n");
@@ -254,6 +290,7 @@ void sig_customer_enter_timer(int signum)
     About half the customers take a handheld scanner with them, there are 10 handheld
     scanners
     */
+   DEBUG_PRINT("Customer takes scanner!!\r\n");
     has_canner = (sem_trywait(&scanner_sem) > 0)?true:false; 
     add_to_list(&shopping_list, id_cnt, has_canner);
     id_cnt++;
@@ -269,14 +306,12 @@ void  customer_prepare_checkout(struct customer_info_obj *obj)
     int i = 0;
     bool found = false;
 
-    DEBUG_PRINT("Customer %d need checkout\r\n", obj->val);
-
-
+    DEBUG_PRINT("Customer %d need checkout\r\n", obj->id);
 
     //TODO: choose cashier or scanner queue
     if (obj->has_scanner)
     {
-        scanner_checkout_add_to_queue(obj->val);
+        scanner_checkout_add_to_queue(obj->id);
     }else 
     {
         // TODO: check queue length of cashier 
@@ -292,11 +327,11 @@ void  customer_prepare_checkout(struct customer_info_obj *obj)
         if (found)
         {
             //TODO: mark this object has manual checkout time
-            scanner_checkout_add_to_queue(obj->val);
+            scanner_checkout_add_to_queue(obj->id);
         }   
         else
         {
-            manual_checkout_add_to_queue(obj->val);
+            manual_checkout_add_to_queue(obj->id);
         }
     }
 }
@@ -304,7 +339,6 @@ void  customer_prepare_checkout(struct customer_info_obj *obj)
 void *thread_shopping_tracking(void *arg)
 {
     bool run = true;
-    int  finish_id = 0;
     struct customer_info_obj *curr_cust_obj;
 
     DEBUG_PRINT("THREAD shopping is running. Argument was %s\n", (char *)arg);
@@ -313,17 +347,17 @@ void *thread_shopping_tracking(void *arg)
     alarm(customer_enter_time);
     while(run)
     {
-        finish_id = list_count_down(&shopping_list, curr_cust_obj);
-        if ( finish_id > 0)
+        if ( list_count_down(&shopping_list, curr_cust_obj) > 0)
         {
+            delete_from_list(&shopping_list, curr_cust_obj);
             customer_prepare_checkout(curr_cust_obj);
         }
 
+#if USE_RANDOM_PERIOD
         // Random checked all customer shopping
-
-
         get_random_check_during_shopping(shopping_list.counter, DEFAULT_SHOPPING_CHECKED_PERCENT);
         curr_cust_obj->remain_time += DEFAULT_SHOPPING_CHECKED_TIME;
+#endif
 
         usleep(100*1000); // 100ms
     }

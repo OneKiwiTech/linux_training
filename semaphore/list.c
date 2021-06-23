@@ -3,27 +3,27 @@
 #include<stdbool.h>
 #include "list.h"
 
-struct customer_info_obj* create_list(struct list_object_struct* obj, int val)
+struct customer_info_obj* create_list(struct list_object_struct* obj, int id)
 {
-    printf("\n creating list with headnode as [%d]\n",val);
+    printf("\n creating list with headnode as [%d]\n",id);
     struct customer_info_obj *ptr = (struct customer_info_obj*)malloc(sizeof(struct customer_info_obj));
     if(NULL == ptr)
     {
         printf("\n Node creation failed \n");
         return NULL;
     }
-    ptr->val = val;
+    ptr->id = id;
     ptr->next = NULL;
 
     obj->head = obj->curr = ptr;
     return ptr;
 }
 
-struct customer_info_obj* add_to_list(struct list_object_struct* obj, int val, bool has_scanner)
+struct customer_info_obj* add_to_list(struct list_object_struct* obj, int id, bool has_scanner)
 {
     if(NULL == obj->head)
     {
-        return (create_list(obj, val));
+        return (create_list(obj, id));
     }
 
     struct customer_info_obj *ptr = (struct customer_info_obj*)malloc(sizeof(struct customer_info_obj));
@@ -32,10 +32,11 @@ struct customer_info_obj* add_to_list(struct list_object_struct* obj, int val, b
         printf("\n Node creation failed \n");
         return NULL;
     }
-    ptr->val = val;
-    ptr->remain_time = 50; //50*100ms = 5s
+    ptr->id = id;
+    ptr->remain_time = obj->meta_data; //50*100ms = 5s
     ptr->next = NULL;
 
+    // Add to the end of list
     {
         obj->curr->next = ptr;
         obj->curr = ptr;
@@ -44,17 +45,17 @@ struct customer_info_obj* add_to_list(struct list_object_struct* obj, int val, b
     return ptr;
 }
 
-struct customer_info_obj* search_in_list(struct list_object_struct* obj, int val, struct customer_info_obj **prev)
+struct customer_info_obj* search_in_list(struct list_object_struct* obj, int id, struct customer_info_obj **prev)
 {
     struct customer_info_obj *ptr = obj->head;
     struct customer_info_obj *tmp = NULL;
     bool found = false;
 
-    printf("\n Searching the list for value [%d] \n",val);
+    printf("\n Searching the list for idue [%d] \n",id);
 
     while(ptr != NULL)
     {
-        if(ptr->val == val)
+        if(ptr->id == id)
         {
             found = true;
             break;
@@ -78,14 +79,14 @@ struct customer_info_obj* search_in_list(struct list_object_struct* obj, int val
     }
 }
 
-int delete_from_list(struct list_object_struct* obj, int val)
+int delete_from_list(struct list_object_struct* list_obj, struct customer_info_obj* cust_obj)
 {
     struct customer_info_obj *prev = NULL;
     struct customer_info_obj *del = NULL;
 
-    printf("\n Deleting value [%d] from list\n",val);
+    printf("\n Deleting id [%d] from list\n", cust_obj->id);
 
-    del = search_in_list(obj, val,&prev);
+    del = search_in_list(list_obj, cust_obj->id, &prev);
     if(del == NULL)
     {
         return -1;
@@ -95,13 +96,13 @@ int delete_from_list(struct list_object_struct* obj, int val)
         if(prev != NULL)
             prev->next = del->next;
 
-        if(del == obj->curr)
+        if(del == list_obj->curr)
         {
-            obj->curr = prev;
+            list_obj->curr = prev;
         }
-        else if(del == obj->head)
+        else if(del == list_obj->head)
         {
-            obj->head = del->next;
+            list_obj->head = del->next;
         }
     }
 
@@ -118,7 +119,7 @@ void print_list(struct list_object_struct* obj)
     printf("\n -------Printing list Start------- \n");
     while(ptr != NULL)
     {
-        printf("\n [%d] \n",ptr->val);
+        printf("\n [%d] \n",ptr->id);
         ptr = ptr->next;
     }
     printf("\n -------Printing list End------- \n");
@@ -137,10 +138,10 @@ int list_count_down(struct list_object_struct* obj, struct customer_info_obj *cu
         if (ptr->remain_time == 0)
         {
             curr_cust_obj = ptr;
-            return ptr->val; //return customer id
+            return 1; 
         }
         ptr = ptr->next;
     }
     
-    return -1;
+    return 0;
 }

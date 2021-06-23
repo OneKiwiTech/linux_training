@@ -10,5 +10,5 @@ list.o: list.o
 	gcc -c list.c -o list.o
 
 clean:
-	rm -f fifo.o
+	rm -f *.o
 	rm -f main
