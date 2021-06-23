@@ -29,7 +29,7 @@ const char* test_string = "0123456789ABCDEF";
 // https://pinout.xyz/pinout/wiringpi
 
 #ifdef GPIO_USE_LIB_WIRING_PI
- static int segments [7] = {  4,  17,  27,  22, 5,  6, 26 } ;
+ static int segments [7] = {  7,  0,  2,  3, 21,  22, 23 } ;
 #endif
 
 

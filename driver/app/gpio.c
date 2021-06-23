@@ -23,6 +23,7 @@ void gpio_set_pin_mode_ouput(int gpio_pin)
 {
 #ifdef GPIO_USE_LIB_WIRING_PI
       pinMode (gpio_pin, OUTPUT) ; 
+      pullUpDnControl(gpio_pin, PUD_OFF);
 #endif 
 
 #ifdef GPIO_USE_LIB_BCM35
