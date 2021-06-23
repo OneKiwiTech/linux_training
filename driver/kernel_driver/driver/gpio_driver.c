@@ -83,7 +83,6 @@ static const int segmentDigits [] =
    0, 0, 0, 0, 0, 0, 0,	// blank
 } ;
 
-static void gpio_set_default_state();
 
 /*
  * INIT_MODULE -- MODULE START --
@@ -151,7 +150,7 @@ int init_module(void)
 static void segment_disp_digit(int d)
 {
  	int segment ;
- 	int index, d, segVal ;
+ 	int index, segVal ;
 
 	for (segment = 0 ; segment < 7 ; ++segment)
 	{
@@ -225,6 +224,7 @@ static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
 {
 	char led_value = 0;
 	short count;
+	int i = 0;
 
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
