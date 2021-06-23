@@ -111,7 +111,7 @@ int main (void)
 {
   char i = 0;
   char* str_ptr = NULL;
-  
+  char c = 0;
   // Init gpio state
   hw_gpio_init() ;
 
@@ -120,8 +120,10 @@ int main (void)
     str_ptr = &test_string[0];
     while(*str_ptr != NULL)
     {
-      displayDigits(*str_ptr++);
-      delay (500) ;
+      c = *str_ptr++;
+      printf("%c\n", c);
+      displayDigits(c);
+      delay (3000) ;
     }
   }
 
