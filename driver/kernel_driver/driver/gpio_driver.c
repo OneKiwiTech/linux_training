@@ -186,7 +186,7 @@ void cleanup_module(void)
 	
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
-		gpio_free(segments[i];
+		gpio_free(segments[i]);
 	}
 	devno = MKDEV(MY_MAJOR, MY_MINOR);
 	if (msg){
