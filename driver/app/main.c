@@ -88,6 +88,7 @@ void displayDigits(char ch)
     }
 
     segVal = segmentDigits [index * 7 + segment] ;
+    printf("segment val = %d\n", segVal);
     gpio_set_pin_state (segments [segment], segVal) ;
   }
 }
