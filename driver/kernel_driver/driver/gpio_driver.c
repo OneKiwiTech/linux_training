@@ -105,6 +105,7 @@ int init_module(void)
 	// -- initial the char device 
 	cdev_init(&my_cdev, &my_fops);
 	my_cdev.owner = THIS_MODULE;
+
 	err = cdev_add(&my_cdev, devno, count);
 
 	if (err < 0)
@@ -115,7 +116,10 @@ int init_module(void)
 
 	// -- print message 
 	printk("<1> Hello World. This is caothinh_driver Driver.\n");
-	printk("'mknod /dev/caothinh_driver0 c %d 0'.\n", MY_MAJOR);
+	for (i = 0; i < MY_DEV_COUNT; i++)
+	{
+		printk("'mknod /dev/caothinh_driver0 c %d 0'.\n", MY_MAJOR);
+	}
 
 	// -- make 
 	msg   = (char *)kmalloc(32, GFP_KERNEL);
@@ -133,13 +137,23 @@ int init_module(void)
 		}
 	}
 
+
+	if(gpio_request(segments[0], "LED0_GPIO") < 0)
+	{
+		printk("gpio %d is request error \n", segments[i]);
+		return -1;
+	}
+
+#if 0
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
-		if(gpio_request(segments[i], THIS_MODULE->name) < 0){
+		if(gpio_request(segments[i], THIS_MODULE->name) < 0)
+		{
 			printk("gpio %d is request error \n", segments[i]);
 			return -1;
 		}
 	}
+#endif
 
 	for (i = 0; i < MY_MAX_GPIO_COUNT; i++)
 	{
