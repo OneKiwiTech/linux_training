@@ -25,6 +25,8 @@ customer_info_obj_t* list_count_down(struct list_head* head, list_object_struct_
 void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner);
 void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, customer_info_obj_t* ptr);
 void print_list(struct list_head* head);
+void  add_to_list_shopping(list_object_struct_t* list_head, int id, bool has_scanner, int shopping_time);
+void list_change_shopping_period_random(struct list_head* head, int id, int plus_period);
 
 #endif 
 

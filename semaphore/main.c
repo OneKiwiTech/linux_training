@@ -10,9 +10,11 @@
 #include "fifo.h"
 #include "my_list.h"
 
-// #define   PROJ_USE_RANDOM_ENTER_TIME  
-// #define   PROJ_USE_RANDOM_SHOPPING_TIME 
-// #define   PROJ_USE_RANDOM_CHECKOUT_TIME 
+// #define   PROJ_USE_RANDOM_CUSTOMER_CHECK
+#define   PROJ_USE_RANDOM_ENTER_TIME  
+#define   PROJ_USE_RANDOM_SHOPPING_TIME 
+#define   PROJ_USE_RANDOM_CHECKOUT_TIME 
+
 // #define TEST_MODE
 
 
@@ -35,12 +37,11 @@ typedef unsigned long uint32_t;
 typedef unsigned int uint16_t;
 
 
-#define   DEFAULT_SHOPPING_CHECKED_TIME       (5)
-#define   DEFAULT_SHOPPING_CHECKED_PERCENT    (25)
+#define   DEFAULT_SHOPPING_CHECKED_TIME       (50) // 5 second
 
 #define  DEFAULT_CUSTOMER_ENTER_PERIOD         (2) //second
 #define  NUMBER_OF_CART              20
-#define  NUMBER_OF_SCANNER           5 //10
+#define  NUMBER_OF_SCANNER           10
 
 #define  MAX_CASHIER_QUEUE          (3)
 #define  MAX_SCANNER_QUEUE          (2)
@@ -95,6 +96,12 @@ void *thread_return_cart(void *arg);
 
 void *thread_monitor_run(void *arg);
 
+
+static int get_random_check_during_shopping(int max_num);
+static  uint32_t get_random_enter_time();
+static  uint32_t get_random_shopping_time();
+static  uint32_t get_random_cashier_checkout_time();
+static  uint32_t get_random_scanner_checkout_time();
 
 int main()
 {
@@ -257,10 +264,10 @@ void sig_customer_enter_timer(int signum)
     has_canner = (sem_trywait(&scanner_sem) >= 0)?1:0; 
 
     // DEBUG_PRINT("Customer %d - scanner %d\n", id_cnt, has_canner);
-    add_to_list(shopping_list_head, id_cnt, has_canner);
+    add_to_list_shopping(shopping_list_head, id_cnt, has_canner, get_random_shopping_time());
     id_cnt++;
   
-    alarm(customer_enter_time);
+    alarm(get_random_enter_time());
 }
 
 #define   CASHIER_QUEUE_LEN_THRESHOLD       5
@@ -278,38 +285,20 @@ void  customer_prepare_checkout(customer_info_obj_t *obj)
         scanner_checkout_add_to_queue(obj->id);
     }else 
     {
-#if 0        
-        // TODO: check queue length of cashier 
-        for (i = 0; i < MAX_CASHIER_QUEUE; i++)
-        {
-            if (manual_checkout_fifo[i].fifo_n_data >= CASHIER_QUEUE_LEN_THRESHOLD)
-            {
-                found = true;
-                break;
-            }
-        }
-#endif
-        if (found)
-        {
-            //TODO: mark this object has manual checkout time
-            scanner_checkout_add_to_queue(obj->id);
-        }   
-        else
-        {
-            manual_checkout_add_to_queue(obj->id);
-        }
+        manual_checkout_add_to_queue(obj->id);
     }
 }
 
 void *thread_shopping_tracking(void *arg)
 {
     bool run = true;
+    int  index = 0;
     customer_info_obj_t *curr_cust_obj = NULL;
 
     DEBUG_PRINT("THREAD shopping is running. Argument was %s\n", (char *)arg);
     signal(SIGALRM,sig_customer_enter_timer);
 
-    alarm(customer_enter_time);
+    alarm(get_random_enter_time());
     while(run)
     {
         curr_cust_obj = list_count_down(&shopping_list, shopping_list_head);
@@ -318,13 +307,13 @@ void *thread_shopping_tracking(void *arg)
             // DEBUG_PRINT("==>customer need checkout\n");
             customer_prepare_checkout(curr_cust_obj);
             delete_from_list(&shopping_list, shopping_list_head, curr_cust_obj);
-        }
-
-#if USE_RANDOM_PERIOD
+#ifdef PROJ_USE_RANDOM_CUSTOMER_CHECK
         // Random checked all customer shopping
-        get_random_check_during_shopping(shopping_list.counter, DEFAULT_SHOPPING_CHECKED_PERCENT);
-        curr_cust_obj->remain_time += DEFAULT_SHOPPING_CHECKED_TIME;
-#endif
+        index = get_random_check_during_shopping(shopping_list_head->counter);
+        printf("Random = %d\n", index);
+        // list_change_shopping_period_random(shopping_list_head, index, DEFAULT_SHOPPING_CHECKED_TIME);
+#endif            
+        }
 
         usleep(100*1000); // 100ms
     }
@@ -413,7 +402,7 @@ void *manual_checkout_thread(void *arg)
 {
     struct fifo_obj* obj = (struct fifo_obj*)arg;
     bool checkout_turn = true;
-    uint32_t counter = DEFAULT_CASHIER_CHECKOUT_PERIOD;
+    uint32_t counter = get_random_cashier_checkout_time();
     int id = 0;
 
     while(1)
@@ -434,7 +423,7 @@ void *manual_checkout_thread(void *arg)
                 checkout_turn = true;
                 // Add to return cart list
                 add_to_list(return_list_head, id, 0);
-                counter = DEFAULT_CASHIER_CHECKOUT_PERIOD;
+                counter = get_random_cashier_checkout_time();
             }
             else{
                  counter -= 1;
@@ -470,7 +459,7 @@ void *scanner_checkout_thread(void *arg)
 {
     struct fifo_obj* obj = (struct fifo_obj*)arg;
     bool checkout_turn = true;
-    uint32_t counter = DEFAULT_SCANNER_CHECKOUT_PERIOD;
+    uint32_t counter = get_random_scanner_checkout_time();
     int id = 0;
 
     while(1)
@@ -494,7 +483,7 @@ void *scanner_checkout_thread(void *arg)
                 sem_post(&scanner_sem);
                 // Add to return cart list
                 add_to_list(return_list_head, id, 1);
-                counter = DEFAULT_SCANNER_CHECKOUT_PERIOD;
+                counter = get_random_scanner_checkout_time();
             }else
             {
                 counter -= 1;
@@ -505,6 +494,7 @@ void *scanner_checkout_thread(void *arg)
 }
 
 
+//==========================================RANDOM FUNCTION==================================
 int random_number(int min_num, int max_num)
 {
     int result = 0, low_num = 0, hi_num = 0;
@@ -523,15 +513,16 @@ int random_number(int min_num, int max_num)
     return result;
 }
 
-// https://stackoverflow.com/questions/26892104/selecting-a-random-number-in-a-set-of-numbers-in-c
-static int get_random_check_during_shopping(int max_num, int percent)
-{
-   int  range =  (max_num*percent) / 100;
-   
-   int min = ( rand() % max_num ); //random number 0-20        
-   int r = ( rand() % (range-min) ) + min; //random number will be greater than min but less than range 
 
-   return r;
+
+// https://stackoverflow.com/questions/26892104/selecting-a-random-number-in-a-set-of-numbers-in-c
+static int get_random_check_during_shopping(int max_num)
+{
+   int  range = max_num * 0.75;
+   
+   int min = random_number(range, max_num); //random number 0-20        
+
+   return min;
 }
 
 static  uint32_t get_random_enter_time()
@@ -570,6 +561,7 @@ static  uint32_t get_random_scanner_checkout_time()
 #endif
 }
 
+//===================================MONITOR THREAD==================================
 void* thread_monitor_run(void* arg)
 {
     int cart_num = 0;

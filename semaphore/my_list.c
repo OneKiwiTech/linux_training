@@ -13,7 +13,7 @@ list_object_struct_t*  create_list(struct list_head* head, int id, int metadata)
     ptr->id = id;
     ptr->meta_data = metadata;
     ptr->counter = 0;
-    
+
     INIT_LIST_HEAD(&ptr->list);
     INIT_LIST_HEAD(&ptr->customer_list);
     list_add_tail(&ptr->list, head);
@@ -35,6 +35,22 @@ void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner)
     list_add_tail(&eptr->list, &(list_head->customer_list) );
 }
 
+
+void  add_to_list_shopping(list_object_struct_t* list_head, int id, bool has_scanner, int shopping_time)
+{
+    customer_info_obj_t *eptr = NULL;
+    
+    eptr = malloc(sizeof(*eptr));
+    eptr->id = id;
+    eptr->remain_time = list_head->meta_data;
+    eptr->has_scanner = has_scanner;
+    eptr->remain_time = shopping_time;
+    INIT_LIST_HEAD(&eptr->list);
+
+    list_head->counter += 1;
+    list_add_tail(&eptr->list, &(list_head->customer_list) );
+}
+
 void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, customer_info_obj_t* ptr)
 {
 	list_object_struct_t *next;
@@ -48,6 +64,23 @@ void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, cu
 			free(eptr);
 		}
 	}
+}
+
+
+void list_change_shopping_period_random(struct list_head* head, int id, int plus_period)
+{
+    list_object_struct_t* ptr;
+
+    list_for_each_entry(ptr, head, list){
+        customer_info_obj_t *eptr;
+        list_for_each_entry(eptr, &ptr->customer_list, list) {
+            if (eptr->id == id)
+            {
+                eptr->remain_time += plus_period;
+                return;
+            }
+        }
+    }
 }
 
 void print_list(struct list_head* head)
