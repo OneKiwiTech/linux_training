@@ -66,6 +66,9 @@ static uint32_t  id_cnt = 1;
 LIST_HEAD(return_cart_list);
 LIST_HEAD(shopping_list);
 
+list_object_struct_t *return_list_head = NULL;
+list_object_struct_t *shopping_list_head = NULL;
+
 // Declare FIFO object
 char cashier_fifo_mem[MAX_TOTAL_QUEUE][FIFO_MAX]; 
 struct fifo_obj manual_checkout_fifo[MAX_CASHIER_QUEUE];
@@ -81,82 +84,6 @@ void *thread_return_cart(void *arg);
 
 void *thread_monitor_run(void *arg);
 
-int random_number(int min_num, int max_num)
-{
-    int result = 0, low_num = 0, hi_num = 0;
-
-    if (min_num < max_num)
-    {
-        low_num = min_num;
-        hi_num = max_num + 1; // include max_num in output
-    } else {
-        low_num = max_num + 1; // include max_num in output
-        hi_num = min_num;
-    }
-
-    srand(time(NULL));
-    result = (rand() % (hi_num - low_num)) + low_num;
-    return result;
-}
-
-// https://stackoverflow.com/questions/26892104/selecting-a-random-number-in-a-set-of-numbers-in-c
-static int get_random_check_during_shopping(int max_num, int percent)
-{
-   int  range =  (max_num*percent) / 100;
-   
-   int min = ( rand() % max_num ); //random number 0-20        
-   int r = ( rand() % (range-min) ) + min; //random number will be greater than min but less than range 
-
-   return r;
-}
-
-static  uint32_t get_random_enter_time()
-{
-#ifdef PROJ_USE_RANDOM_ENTER_TIME
-   return random_number(1, 5);
-#else
-   return DEFAULT_CUSTOMER_ENTER_PERIOD;
-#endif   
-}
-
-static  uint32_t get_random_shopping_time()
-{
-#ifdef PROJ_USE_RANDOM_SHOPPING_TIME    
-    random_number(2, 20);
-#else
-    return DEFAULT_SHOPPING_PERIOD;
-#endif
-}
-
-static  uint32_t get_random_cashier_checkout_time()
-{
-#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
-    random_number(20, 70);
-#else
-    return DEFAULT_CASHIER_CHECKOUT_PERIOD;
-#endif
-}
-
-static  uint32_t get_random_scanner_checkout_time()
-{
-#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
-    random_number(10, 40);
-#else
-    return DEFAULT_SCANNER_CHECKOUT_PERIOD;
-#endif
-}
-
-void* thread_monitor_run(void* arg)
-{
-    while(1)
-    {
-        DEBUG_PRINT("Customer count = %d\n", id_cnt);
-        usleep(1000*1000);
-        // system("cls");
-    }
-
-    return NULL;
-}
 
 int main()
 {
@@ -186,8 +113,8 @@ int main()
 
     //=================Init link list===================
     // Init return cart list
-    create_list(&return_cart_list, 1, DEFAULT_RETURN_CART_PERIOD);
-    create_list(&shopping_list, 2, DEFAULT_SHOPPING_PERIOD);
+    return_list_head = create_list(&return_cart_list, 1, DEFAULT_RETURN_CART_PERIOD);
+    shopping_list_head = create_list(&shopping_list, 2, DEFAULT_SHOPPING_PERIOD);
 
     //=================Init THREAD=======================
      
@@ -296,7 +223,7 @@ void sig_customer_enter_timer(int signum)
     has_canner = (sem_trywait(&scanner_sem) > 0)?true:false; 
 
     DEBUG_PRINT("Customer is added to shopping list!!\r\n");
-    add_to_list(&shopping_list, id_cnt, has_canner);
+    add_to_list(shopping_list_head, id_cnt, has_canner);
     id_cnt++;
   }
 
@@ -352,11 +279,11 @@ void *thread_shopping_tracking(void *arg)
     while(run)
     {
 
-        curr_cust_obj = list_count_down(&shopping_list);
+        curr_cust_obj = list_count_down(shopping_list_head);
         if ( curr_cust_obj != NULL)
         {   
             DEBUG_PRINT("==>customer need checkout\n");
-            delete_from_list(&shopping_list, curr_cust_obj);
+            delete_from_list(&shopping_list, shopping_list_head, curr_cust_obj);
             // customer_prepare_checkout(curr_cust_obj);
         }
 
@@ -389,7 +316,7 @@ void *thread_return_cart(void *arg)
 
     while(run)
     {
-        obj = list_count_down(&return_cart_list);
+        obj = list_count_down(return_list_head);
         if ( obj != NULL)
         {
             sem_post(&cart_sem);
@@ -457,7 +384,7 @@ void *manual_checkout_thread(void *arg)
             {
                 checkout_turn = true;
                 // Add to return cart list
-                add_to_list(&return_cart_list, id, false);
+                add_to_list(return_list_head, id, false);
             }
             counter -= 1;
         }
@@ -522,10 +449,88 @@ void *scanner_checkout_thread(void *arg)
                 // Release scanner for next person
                 sem_post(&scanner_sem);
                 // Add to return cart list
-                add_to_list(&return_cart_list, id, true);
+                add_to_list(return_list_head, id, true);
             }
             counter -= 1;
         }
         usleep(100*1000); // 100ms
     }
+}
+
+
+int random_number(int min_num, int max_num)
+{
+    int result = 0, low_num = 0, hi_num = 0;
+
+    if (min_num < max_num)
+    {
+        low_num = min_num;
+        hi_num = max_num + 1; // include max_num in output
+    } else {
+        low_num = max_num + 1; // include max_num in output
+        hi_num = min_num;
+    }
+
+    srand(time(NULL));
+    result = (rand() % (hi_num - low_num)) + low_num;
+    return result;
+}
+
+// https://stackoverflow.com/questions/26892104/selecting-a-random-number-in-a-set-of-numbers-in-c
+static int get_random_check_during_shopping(int max_num, int percent)
+{
+   int  range =  (max_num*percent) / 100;
+   
+   int min = ( rand() % max_num ); //random number 0-20        
+   int r = ( rand() % (range-min) ) + min; //random number will be greater than min but less than range 
+
+   return r;
+}
+
+static  uint32_t get_random_enter_time()
+{
+#ifdef PROJ_USE_RANDOM_ENTER_TIME
+   return random_number(1, 5);
+#else
+   return DEFAULT_CUSTOMER_ENTER_PERIOD;
+#endif   
+}
+
+static  uint32_t get_random_shopping_time()
+{
+#ifdef PROJ_USE_RANDOM_SHOPPING_TIME    
+    random_number(2, 20);
+#else
+    return DEFAULT_SHOPPING_PERIOD;
+#endif
+}
+
+static  uint32_t get_random_cashier_checkout_time()
+{
+#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
+    random_number(20, 70);
+#else
+    return DEFAULT_CASHIER_CHECKOUT_PERIOD;
+#endif
+}
+
+static  uint32_t get_random_scanner_checkout_time()
+{
+#ifdef PROJ_USE_RANDOM_CHECKOUT_TIME    
+    random_number(10, 40);
+#else
+    return DEFAULT_SCANNER_CHECKOUT_PERIOD;
+#endif
+}
+
+void* thread_monitor_run(void* arg)
+{
+    while(1)
+    {
+        DEBUG_PRINT("Customer count = %d\n", id_cnt);
+        usleep(1000*1000);
+        // system("cls");
+    }
+
+    return NULL;
 }
