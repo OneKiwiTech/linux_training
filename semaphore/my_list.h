@@ -21,7 +21,7 @@ typedef struct list_object_struct
 } list_object_struct_t;
 
 list_object_struct_t*  create_list(struct list_head* head, int id, int metadata);
-customer_info_obj_t* list_count_down(struct list_head* head );
+customer_info_obj_t* list_count_down(struct list_head* head, list_object_struct_t* ptr);
 void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner);
 void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, customer_info_obj_t* ptr);
 void print_list(struct list_head* head);

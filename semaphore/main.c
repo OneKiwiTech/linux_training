@@ -114,8 +114,17 @@ int main()
     //=================Init link list===================
     // Init return cart list
     return_list_head = create_list(&return_cart_list, 1, DEFAULT_RETURN_CART_PERIOD);
+    if (return_list_head == NULL)
+    {
+        DEBUG_PRINT("Init list failed\n");
+        exit(EXIT_FAILURE);
+    }
     shopping_list_head = create_list(&shopping_list, 2, DEFAULT_SHOPPING_PERIOD);
-
+    if (shopping_list_head == NULL)
+    {
+        DEBUG_PRINT("Init list failed\n");
+        exit(EXIT_FAILURE);
+    }
     //=================Init THREAD=======================
      
     res = pthread_create(&monitor_thread, NULL, thread_monitor_run, (void *)NULL);
@@ -132,7 +141,7 @@ int main()
         DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
- #if 1
+ #if 0
 
     res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
@@ -278,8 +287,7 @@ void *thread_shopping_tracking(void *arg)
     alarm(customer_enter_time);
     while(run)
     {
-
-        curr_cust_obj = list_count_down(shopping_list_head);
+        curr_cust_obj = list_count_down(&shopping_list, shopping_list_head);
         if ( curr_cust_obj != NULL)
         {   
             DEBUG_PRINT("==>customer need checkout\n");
@@ -316,7 +324,7 @@ void *thread_return_cart(void *arg)
 
     while(run)
     {
-        obj = list_count_down(return_list_head);
+        obj = list_count_down(&return_cart_list, return_list_head);
         if ( obj != NULL)
         {
             sem_post(&cart_sem);

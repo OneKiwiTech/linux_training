@@ -53,7 +53,7 @@ void print_list(struct list_head* head)
     list_object_struct_t* ptr;
 
     list_for_each_entry(ptr, head, list){
-        printf("customer id: %d\n", ptr->id);
+        // printf("customer id: %d\n", ptr->id);
         customer_info_obj_t *eptr;
         list_for_each_entry(eptr, &ptr->customer_list, list) {
             printf("epid: %d\n", eptr->id);
@@ -62,15 +62,13 @@ void print_list(struct list_head* head)
 }
 
 
-customer_info_obj_t* list_count_down(struct list_head* head )
+customer_info_obj_t* list_count_down(struct list_head* head, list_object_struct_t* ptr)
 {
-    list_object_struct_t* ptr;
-
     list_for_each_entry(ptr, head, list){
         // printf("customer id: %d\n", ptr->id);
         customer_info_obj_t *eptr;
         list_for_each_entry(eptr, &ptr->customer_list, list) {
-            printf("epid: %d\n", eptr->id);
+            // printf("epid: %d\n", eptr->id);
             eptr->remain_time = eptr->remain_time - 1;
             if (eptr->remain_time == 0){
                 return eptr;
