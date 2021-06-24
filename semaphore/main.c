@@ -8,7 +8,7 @@
 #include<signal.h>
 
 #include "fifo.h"
-#include "list.h"
+#include "my_list.h"
 
 // #define   PROJ_USE_RANDOM_ENTER_TIME  
 // #define   PROJ_USE_RANDOM_SHOPPING_TIME 
@@ -63,8 +63,8 @@ static uint32_t  customer_enter_time = DEFAULT_CUSTOMER_ENTER_PERIOD;
 static uint32_t  id_cnt = 1;
 
 // Declare list object
-struct list_object_struct return_cart_list;
-struct list_object_struct shopping_list;
+LIST_HEAD(return_cart_list);
+LIST_HEAD(shopping_list);
 
 // Declare FIFO object
 char cashier_fifo_mem[MAX_TOTAL_QUEUE][FIFO_MAX]; 
@@ -186,9 +186,9 @@ int main()
 
     //=================Init link list===================
     // Init return cart list
-    return_cart_list.meta_data = DEFAULT_RETURN_CART_PERIOD;  // 20 * 100ms = 2 seconds
-    shopping_list.meta_data = DEFAULT_SHOPPING_PERIOD;  // 20 * 100ms = 5 seconds
-    
+    create_list(&return_cart_list, 1, DEFAULT_RETURN_CART_PERIOD);
+    create_list(&shopping_list, 2, DEFAULT_SHOPPING_PERIOD);
+
     //=================Init THREAD=======================
      
     res = pthread_create(&monitor_thread, NULL, thread_monitor_run, (void *)NULL);
@@ -305,7 +305,7 @@ void sig_customer_enter_timer(int signum)
 
 #define   CASHIER_QUEUE_LEN_THRESHOLD       5
 
-void  customer_prepare_checkout(struct customer_info_obj *obj)
+void  customer_prepare_checkout(customer_info_obj_t *obj)
 {
     int i = 0;
     bool found = false;
@@ -343,7 +343,7 @@ void  customer_prepare_checkout(struct customer_info_obj *obj)
 void *thread_shopping_tracking(void *arg)
 {
     bool run = true;
-    struct customer_info_obj *curr_cust_obj;
+    customer_info_obj_t *curr_cust_obj = NULL;
 
     DEBUG_PRINT("THREAD shopping is running. Argument was %s\n", (char *)arg);
     signal(SIGALRM,sig_customer_enter_timer);
@@ -351,7 +351,9 @@ void *thread_shopping_tracking(void *arg)
     alarm(customer_enter_time);
     while(run)
     {
-        if ( list_count_down(&shopping_list, curr_cust_obj) > 0)
+
+        curr_cust_obj = list_count_down(&shopping_list);
+        if ( curr_cust_obj != NULL)
         {   
             DEBUG_PRINT("==>customer need checkout\n");
             delete_from_list(&shopping_list, curr_cust_obj);
@@ -381,14 +383,14 @@ void *thread_return_cart(void *arg)
 {
     bool run = true;
     int  finish_id = 0;
-    struct customer_info_obj *obj = NULL;
+    customer_info_obj_t *obj = NULL;
 
     DEBUG_PRINT("THREAD return cart is running. Argument was %s\n", (char *)arg);
 
     while(run)
     {
-        finish_id = list_count_down(&return_cart_list, obj);
-        if ( finish_id > 0)
+        obj = list_count_down(&return_cart_list);
+        if ( obj != NULL)
         {
             sem_post(&cart_sem);
         }
