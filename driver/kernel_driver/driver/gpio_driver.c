@@ -167,8 +167,8 @@ static ssize_t my_read(struct file *filp, char *buff, size_t len, loff_t *off)
 	char led_value;
 	short count;
 
-	major = MAJOR(filp->f_dentry->d_inode->i_rdev);
-	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+	// major = MAJOR(filp->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
 
 	switch(minor){
 		case 0:
@@ -204,7 +204,7 @@ static ssize_t my_write(struct file *filp, const char *buff, size_t len, loff_t 
 
 	memset(msg, 0, 32);
 	// -- need to get the device minor number because we have two devices
-	minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(filp->f_dentry->d_inode->i_rdev);
 	// -- copy the string from the user space program which open and write this device
 	count = copy_from_user( msg, buff, len );
 
@@ -229,7 +229,7 @@ static int my_close(struct inode *inod, struct file *fil)
 {
 	int minor;
 
-	minor = MINOR(fil->f_dentry->d_inode->i_rdev);
+	// minor = MINOR(fil->f_dentry->d_inode->i_rdev);
 	printk("*****Some body is closing me at major %d*****\n",minor);
 
 	return 0;
