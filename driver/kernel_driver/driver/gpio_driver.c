@@ -29,7 +29,7 @@
 
 //#include "RPI.h"
 
-#define LED0 22 
+#define LED0 17 
 #define LED1 27 
 
 #define MY_MAJOR  200
