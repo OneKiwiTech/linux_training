@@ -70,9 +70,15 @@ list_object_struct_t *return_list_head = NULL;
 list_object_struct_t *shopping_list_head = NULL;
 
 // Declare FIFO object
-char cashier_fifo_mem[MAX_TOTAL_QUEUE][FIFO_MAX]; 
+char manual_fifo_buffer[MAX_CASHIER_QUEUE][FIFO_MAX]; 
+char scanner_fifo_buffer[MAX_SCANNER_QUEUE][FIFO_MAX]; 
+
+
 struct fifo_obj manual_checkout_fifo[MAX_CASHIER_QUEUE];
 struct fifo_obj scanner_checkout_fifo[MAX_SCANNER_QUEUE];
+
+
+
 
 void scanner_checkout_add_to_queue(char id);
 void manual_checkout_add_to_queue(char id);
@@ -111,6 +117,17 @@ int main()
         exit(EXIT_FAILURE);
     }
 
+    //=================Init FIFO =======================
+
+    for (i = 0; i < MAX_CASHIER_QUEUE; i++)
+    {
+        manual_checkout_fifo[i].mem_pool = &manual_fifo_buffer[i];
+    }
+
+    for (i = 0; i < MAX_SCANNER_QUEUE; i++)
+    {
+        scanner_checkout_fifo[i].mem_pool = &scanner_fifo_buffer[i];
+    }
     //=================Init link list===================
     // Init return cart list
     return_list_head = create_list(&return_cart_list, 1, DEFAULT_RETURN_CART_PERIOD);
@@ -229,7 +246,7 @@ void sig_customer_enter_timer(int signum)
     scanners
     */
    
-    has_canner = (sem_trywait(&scanner_sem) > 0)?true:false; 
+    has_canner = (sem_trywait(&scanner_sem) > 0)?1:0; 
 
     DEBUG_PRINT("Customer is added to shopping list!!\r\n");
     add_to_list(shopping_list_head, id_cnt, has_canner);
@@ -246,7 +263,7 @@ void  customer_prepare_checkout(customer_info_obj_t *obj)
     int i = 0;
     bool found = false;
 
-    DEBUG_PRINT("Customer %d need checkout\r\n", obj->id);
+    DEBUG_PRINT("Customer %d need checkout, with scanner = %d\r\n", obj->id, obj->has_scanner);
 
     //TODO: choose cashier or scanner queue
     if (obj->has_scanner)
@@ -254,6 +271,7 @@ void  customer_prepare_checkout(customer_info_obj_t *obj)
         scanner_checkout_add_to_queue(obj->id);
     }else 
     {
+#if 0        
         // TODO: check queue length of cashier 
         for (i = 0; i < MAX_CASHIER_QUEUE; i++)
         {
@@ -263,7 +281,7 @@ void  customer_prepare_checkout(customer_info_obj_t *obj)
                 break;
             }
         }
-
+#endif
         if (found)
         {
             //TODO: mark this object has manual checkout time
@@ -291,8 +309,8 @@ void *thread_shopping_tracking(void *arg)
         if ( curr_cust_obj != NULL)
         {   
             DEBUG_PRINT("==>customer need checkout\n");
+            customer_prepare_checkout(curr_cust_obj);
             delete_from_list(&shopping_list, shopping_list_head, curr_cust_obj);
-            // customer_prepare_checkout(curr_cust_obj);
         }
 
 #if USE_RANDOM_PERIOD
@@ -327,6 +345,7 @@ void *thread_return_cart(void *arg)
         obj = list_count_down(&return_cart_list, return_list_head);
         if ( obj != NULL)
         {
+            DEBUG_PRINT("==>ID %d return cart\n", obj->id);
             sem_post(&cart_sem);
         }
         usleep(100*1000); // 100ms
@@ -392,7 +411,7 @@ void *manual_checkout_thread(void *arg)
             {
                 checkout_turn = true;
                 // Add to return cart list
-                add_to_list(return_list_head, id, false);
+                add_to_list(return_list_head, id, 0);
             }
             counter -= 1;
         }
@@ -454,10 +473,11 @@ void *scanner_checkout_thread(void *arg)
             if (counter == 0)
             {
                 checkout_turn = true;
+                DEBUG_PRINT("==>ID = %d return scanner\n", id);
                 // Release scanner for next person
                 sem_post(&scanner_sem);
                 // Add to return cart list
-                add_to_list(return_list_head, id, true);
+                add_to_list(return_list_head, id, 1);
             }
             counter -= 1;
         }

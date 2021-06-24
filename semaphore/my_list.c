@@ -27,6 +27,7 @@ void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner)
     eptr = malloc(sizeof(*eptr));
     eptr->id = id;
     eptr->remain_time = list_head->meta_data;
+    eptr->has_scanner = has_scanner;
     INIT_LIST_HEAD(&eptr->list);
     list_add_tail(&eptr->list, &(list_head->customer_list) );
 }
@@ -67,10 +68,12 @@ customer_info_obj_t* list_count_down(struct list_head* head, list_object_struct_
         customer_info_obj_t *eptr;
 
         list_for_each_entry(eptr, &ptr->customer_list, list) {
-            printf("epid: %d, time left = %d\n", eptr->id, eptr->remain_time);
-            eptr->remain_time = eptr->remain_time - 1;
+            // printf("==>epid: %d, time left = %d\n", eptr->id, eptr->remain_time);
             if (eptr->remain_time == 0){
                 return eptr;
+            }else 
+            {
+                eptr->remain_time = eptr->remain_time - 1;
             }
         }
     }
