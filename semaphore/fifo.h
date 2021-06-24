@@ -11,6 +11,7 @@ struct fifo_obj
   int fifo_n_data;
 };
 
+void fifo_init(struct fifo_obj* obj);
 int fifo_data_isavailable(struct fifo_obj* obj);
 int fifo_data_isfull(struct fifo_obj* obj);
 int fifo_push(struct fifo_obj* obj, int data);

@@ -12,7 +12,8 @@ list_object_struct_t*  create_list(struct list_head* head, int id, int metadata)
 
     ptr->id = id;
     ptr->meta_data = metadata;
-
+    ptr->counter = 0;
+    
     INIT_LIST_HEAD(&ptr->list);
     INIT_LIST_HEAD(&ptr->customer_list);
     list_add_tail(&ptr->list, head);
@@ -29,6 +30,8 @@ void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner)
     eptr->remain_time = list_head->meta_data;
     eptr->has_scanner = has_scanner;
     INIT_LIST_HEAD(&eptr->list);
+
+    list_head->counter += 1;
     list_add_tail(&eptr->list, &(list_head->customer_list) );
 }
 
@@ -40,7 +43,7 @@ void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, cu
 
 		customer_info_obj_t *enext, *eptr;
 		list_for_each_entry_safe(eptr, enext, &(list_ptr->customer_list), list) {
-			printf("Removing – epid: %d\n", eptr->id);
+			// printf("Removing – epid: %d\n", eptr->id);
 			list_del(&eptr->list);
 			free(eptr);
 		}
