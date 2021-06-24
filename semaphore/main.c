@@ -150,7 +150,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
- #if 0
+ #if 1
     for (i = 0; i < 3; i++)
     {
         res = pthread_create(&cashier_thread[i], NULL, manual_checkout_thread, (void *)&manual_checkout_fifo[i]);

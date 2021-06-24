@@ -26,6 +26,7 @@ void  add_to_list(list_object_struct_t* list_head, int id, bool has_scanner)
     
     eptr = malloc(sizeof(*eptr));
     eptr->id = id;
+    eptr->remain_time = list_head->meta_data;
     INIT_LIST_HEAD(&eptr->list);
     list_add_tail(&eptr->list, &(list_head->customer_list) );
 }
@@ -34,7 +35,7 @@ void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, cu
 {
 	list_object_struct_t *next;
 	list_for_each_entry_safe(ptr, next, head, list) {
-		printf("Removing – pid: %d\n", ptr->id);
+		// printf("Removing – pid: %d\n", ptr->id);
 
 		customer_info_obj_t *enext, *eptr;
 		list_for_each_entry_safe(eptr, enext, &(list_ptr->customer_list), list) {
@@ -42,9 +43,6 @@ void delete_from_list(struct list_head* head, list_object_struct_t *list_ptr, cu
 			list_del(&eptr->list);
 			free(eptr);
 		}
-		
-		list_del(&ptr->list);
-		free(ptr);
 	}
 }
 
@@ -67,8 +65,9 @@ customer_info_obj_t* list_count_down(struct list_head* head, list_object_struct_
     list_for_each_entry(ptr, head, list){
         // printf("customer id: %d\n", ptr->id);
         customer_info_obj_t *eptr;
+
         list_for_each_entry(eptr, &ptr->customer_list, list) {
-            // printf("epid: %d\n", eptr->id);
+            printf("epid: %d, time left = %d\n", eptr->id, eptr->remain_time);
             eptr->remain_time = eptr->remain_time - 1;
             if (eptr->remain_time == 0){
                 return eptr;
