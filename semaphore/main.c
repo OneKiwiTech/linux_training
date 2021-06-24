@@ -370,25 +370,39 @@ void *thread_return_cart(void *arg)
   they choose the cashier with the least (or none) customers in line and join the end of that queue.
 */
 
+ int findMinOfArray(int a[],int n)
+ {
+ 	int min,i;
+    int idx = 0;
+
+ 	min = a[0];
+     
+    for(i = 1; i < n; i++)
+    {
+         if(min > a[i])
+         {
+		  min = a[i];  
+          idx = i; 
+         }
+    }
+
+    return idx;    
+ }
+
 void manual_checkout_add_to_queue(char id)
 {
-    int i = 1; 
-    struct fifo_obj* obj = NULL;
-    int curr_queue_cnt = manual_checkout_fifo[0].fifo_head;
-    int min_queue_id = 0; 
+    int  queue_items[3] = {0};
+    int i = 0;
+
+    for (i = 0; i < 3; i++)
+    {
+        queue_items[i] = manual_checkout_fifo[i].fifo_head;
+    }
 
     // Find cashier with the least or none customer
-    do
-    {
-        obj = &manual_checkout_fifo[i];
-        if (obj->fifo_head < curr_queue_cnt);
-        {
-            curr_queue_cnt = obj->fifo_head;
-            min_queue_id = i++;
-        }
-    }while(i < 3);
+    i = findMinOfArray(queue_items, 3);
 
-    fifo_push(&manual_checkout_fifo[min_queue_id], id); 
+    fifo_push(&manual_checkout_fifo[i], id); 
 }
 
 

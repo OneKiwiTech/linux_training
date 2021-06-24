@@ -37,7 +37,7 @@ int fifo_push(struct fifo_obj* obj, int data)
 {
   if (!fifo_data_isfull(obj))
   {
-    printf("Push %d\n", data);
+    // printf("Push %d\n", data);
     obj->mem_pool[obj->fifo_head] = data;
     if (obj->fifo_head < 255)
     {
@@ -66,7 +66,7 @@ char fifo_pull(struct fifo_obj* obj)
   {
   
     data = obj->mem_pool[obj->fifo_tail];
-    printf("==>PULL %d\n", data);
+    // printf("==>PULL %d\n", data);
     if (obj->fifo_tail < 255)
     {
       obj->fifo_tail ++;
