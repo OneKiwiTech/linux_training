@@ -1,13 +1,20 @@
-#include "simple_driver.h"
 #include <linux/fs.h> 	    /* file stuff */
 #include <linux/kernel.h>   /* printk() */
 #include <linux/errno.h>    /* error codes */
 #include <linux/module.h>   /* THIS_MODULE */
 #include <linux/cdev.h>     /* char device stuff */
 #include <linux/uaccess.h>  /* copy_to_user() */
+#include <linux/init.h>       /* module_init, module_exit */
+#include <linux/module.h>     /* version info, MODULE_LICENSE, MODULE_AUTHOR, printk() */
+#include <linux/compiler.h> /* __must_check */
 
 static const char g_s_Hello_World_string[] = "Hello world from cao_driver!\n\0";
 static const ssize_t g_s_Hello_World_size = sizeof(g_s_Hello_World_string);
+
+MODULE_DESCRIPTION("Simple Linux driver");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Cao Thinh");
+
 
 /*===============================================================================================*/
 static ssize_t device_file_read(
@@ -73,3 +80,25 @@ void unregister_device(void)
         unregister_chrdev(device_file_major_number, device_name);
     }
 }
+
+/*===============================================================================================*/
+static int simple_driver_init(void)
+{
+    int result = 0;
+    printk( KERN_NOTICE "Simple-driver: Initialization started\n" );
+
+    result = register_device();
+    return result;
+}
+
+/*===============================================================================================*/
+static void simple_driver_exit(void)
+{
+    printk( KERN_NOTICE "Simple-driver: Exiting\n" );
+    unregister_device();
+}
+
+
+/*===============================================================================================*/
+module_init(simple_driver_init);
+module_exit(simple_driver_exit);

@@ -2,7 +2,7 @@ TARGET_MODULE:=simple_driver
 
 # If we running by kernel building system
 ifneq ($(KERNELRELEASE),)
-	$(TARGET_MODULE)-objs := main.o simple_driver.o
+	$(TARGET_MODULE)-objs := simple_driver.o
 	obj-m := $(TARGET_MODULE).o
 
 # If we are running without kernel build system
