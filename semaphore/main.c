@@ -141,7 +141,7 @@ int main()
         DEBUG_PRINT("Thread creation failed");
         exit(EXIT_FAILURE);
     }
- #if 0
+
 
     res = pthread_create(&return_thread, NULL, thread_return_cart, (void *)NULL);
     if (res != 0)
@@ -150,7 +150,7 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-
+ #if 0
     for (i = 0; i < 3; i++)
     {
         res = pthread_create(&cashier_thread[i], NULL, manual_checkout_thread, (void *)&manual_checkout_fifo[i]);
