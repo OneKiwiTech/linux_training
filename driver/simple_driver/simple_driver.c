@@ -8,10 +8,10 @@
 #include <linux/module.h>     /* version info, MODULE_LICENSE, MODULE_AUTHOR, printk() */
 #include <linux/compiler.h> /* __must_check */
 
-static const char g_s_Hello_World_string[] = "Hello world from cao_driver!\n\0";
-static const ssize_t g_s_Hello_World_size = sizeof(g_s_Hello_World_string);
+static const char welcome_string[] = "Hello world from cao_driver!\n\0";
+static const ssize_t welcome_string_size = sizeof(welcome_string);
 
-MODULE_DESCRIPTION("Simple Linux driver");
+MODULE_DESCRIPTION("cao_driver Linux driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Cao Thinh");
 
@@ -23,17 +23,17 @@ static ssize_t device_file_read(
     , size_t count
     , loff_t *possition)
 {
-    printk( KERN_NOTICE "Simple-driver: Device file is read at offset = %i, read bytes count = %u\n"
+    printk( KERN_NOTICE "cao_driver-driver: Device file is read at offset = %i, read bytes count = %u\n"
         , (int)*possition
         , (unsigned int)count );
 
-    if( *possition >= g_s_Hello_World_size )
+    if( *possition >= welcome_string_size )
         return 0;
 
-    if( *possition + count > g_s_Hello_World_size )
-        count = g_s_Hello_World_size - *possition;
+    if( *possition + count > welcome_string_size )
+        count = welcome_string_size - *possition;
 
-    if( copy_to_user(user_buffer, g_s_Hello_World_string + *possition, count) != 0 )
+    if( copy_to_user(user_buffer, welcome_string + *possition, count) != 0 )
         return -EFAULT;
 
     *possition += count;
@@ -48,24 +48,24 @@ static struct file_operations simple_driver_fops =
 };
 
 static int device_file_major_number = 0;
-static const char device_name[] = "Simple-driver";
+static const char device_name[] = "cao_driver";
 
 /*===============================================================================================*/
 int register_device(void)
 {
     int result = 0;
 
-    printk( KERN_NOTICE "Simple-driver: register_device() is called.\n" );
+    printk( KERN_NOTICE "cao_driver: register_device() is called.\n" );
 
     result = register_chrdev( 0, device_name, &simple_driver_fops );
     if( result < 0 )
     {
-        printk( KERN_WARNING "Simple-driver:  can\'t register character device with errorcode = %i\n", result );
+        printk( KERN_WARNING "cao_driver:  can\'t register character device with errorcode = %i\n", result );
         return result;
     }
 
     device_file_major_number = result;
-    printk( KERN_NOTICE "Simple-driver: registered character device with major number = %i and minor numbers 0...255\n"
+    printk( KERN_NOTICE "cao_driver: registered character device with major number = %i and minor numbers 0...255\n"
         , device_file_major_number );
 
     return 0;
@@ -74,7 +74,7 @@ int register_device(void)
 /*===============================================================================================*/
 void unregister_device(void)
 {
-    printk( KERN_NOTICE "Simple-driver: unregister_device() is called\n" );
+    printk( KERN_NOTICE "cao_driver: unregister_device() is called\n" );
     if(device_file_major_number != 0)
     {
         unregister_chrdev(device_file_major_number, device_name);
@@ -85,7 +85,7 @@ void unregister_device(void)
 static int simple_driver_init(void)
 {
     int result = 0;
-    printk( KERN_NOTICE "Simple-driver: Initialization started\n" );
+    printk( KERN_NOTICE "cao_driver: Initialization started\n" );
 
     result = register_device();
     return result;
@@ -94,7 +94,7 @@ static int simple_driver_init(void)
 /*===============================================================================================*/
 static void simple_driver_exit(void)
 {
-    printk( KERN_NOTICE "Simple-driver: Exiting\n" );
+    printk( KERN_NOTICE "cao_driver: Exiting\n" );
     unregister_device();
 }
 
